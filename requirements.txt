@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+setuptools
+opencv-python
+insightface
+onnxruntime
+faiss-cpu
+numpy
+python-multipart
+paddlepaddle
+paddleocr
+sentence-transformers
