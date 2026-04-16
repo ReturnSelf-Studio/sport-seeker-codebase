@@ -5,6 +5,7 @@ import os
 import sys
 import threading
 import time
+import queue
 import uuid
 from pathlib import Path
 from typing import List, Optional
@@ -25,8 +26,8 @@ FaceProcessor = None
 OCRProcessor = None
 SentenceTransformer = None
 
-model_status = "loading"
-model_loading_message = "Đang chuẩn bị khởi tạo..."
+model_status = "loading"  
+model_loading_message = "Đang chuẩn bị khởi tạo..." 
 
 app = FastAPI(title="Sport Seeker Backend API")
 
@@ -41,7 +42,6 @@ app.add_middleware(
 pm = ProjectManager()
 
 def background_model_loader():
-    """Tải model ở một thread riêng và báo cáo tiến trình cụ thể."""
     global FaceProcessor, OCRProcessor, SentenceTransformer, model_status, model_loading_message
     try:
         print("[Backend] Bắt đầu khởi tạo AI Models...", flush=True)
@@ -180,12 +180,8 @@ class ProcessConfig(BaseModel):
     bib_min: int
     bib_max: int
 
-def _process_video_batch(batch_frames, batch_frame_counts, batch_timestamps, tracker, vs, config, fpath, do_face, do_bib, FaceProcessor, OCRProcessor, SentenceTransformer, process_interval, no_face_streak):
+def _process_video_batch(batch_frames, batch_frame_counts, batch_timestamps, tracker, result_queue, config, fpath, do_face, do_bib, FaceProcessor, OCRProcessor, SentenceTransformer, process_interval, no_face_streak, thumb_dir):
     batch_faces = []
-    project_info = pm.get_project(config.project_id)
-    thumb_dir = os.path.join(project_info["source_dir"], ".thumbnails")
-    os.makedirs(thumb_dir, exist_ok=True)
-
     if do_face and FaceProcessor:
         try:
             batch_faces = FaceProcessor.get_embeddings_batch(batch_frames)
@@ -218,10 +214,9 @@ def _process_video_batch(batch_frames, batch_frame_counts, batch_timestamps, tra
                 except:
                     thumb_path = None
                     
-                vs.add_vectors(
-                    np.array([t["best_face"]["embedding"] for t in finished]),
-                    [{"source_path": fpath, "image_type": "video", "timestamp": t["start_timestamp"], "end_timestamp": t["end_timestamp"], "frame_idx": t["last_seen_frame_idx"], "bbox": t["best_face"]["bbox"], "det_score": t["best_face"]["det_score"], "type": "face", "track_id": t["id"], "thumbnail_path": thumb_path} for t in finished]
-                )
+                vectors = np.array([t["best_face"]["embedding"] for t in finished])
+                metadata = [{"source_path": fpath, "image_type": "video", "timestamp": t["start_timestamp"], "end_timestamp": t["end_timestamp"], "frame_idx": t["last_seen_frame_idx"], "bbox": t["best_face"]["bbox"], "det_score": t["best_face"]["det_score"], "type": "face", "track_id": t["id"], "thumbnail_path": thumb_path} for t in finished]
+                result_queue.put({"type": "face", "vectors": vectors, "metadata": metadata})
 
         if do_bib and OCRProcessor and SentenceTransformer and b_faces:
             fh_f, fw_f = b_frame.shape[:2]
@@ -249,10 +244,9 @@ def _process_video_batch(batch_frames, batch_frame_counts, batch_timestamps, tra
                             except:
                                 thumb_path = None
                                 
-                            vs.add_bib_vectors(
-                                np.array([SentenceTransformer.encode([t["text"]])[0] for t in bibs]),
-                                [{"source_path": fpath, "image_type": "video", "timestamp": b_ts, "frame_idx": b_fcount, "text": t["text"], "score": t["score"], "type": "bib", "thumbnail_path": thumb_path} for t in bibs]
-                            )
+                            vectors = np.array([SentenceTransformer.encode([t["text"]])[0] for t in bibs])
+                            metadata = [{"source_path": fpath, "image_type": "video", "timestamp": b_ts, "frame_idx": b_fcount, "text": t["text"], "score": t["score"], "type": "bib", "thumbnail_path": thumb_path} for t in bibs]
+                            result_queue.put({"type": "bib", "vectors": vectors, "metadata": metadata})
                 except Exception:
                     pass
 
@@ -304,16 +298,12 @@ async def run_processing(config: ProcessConfig):
 
         pm.apply_index_paths(config.project_id)
         vs = VectorStore(load_existing=True)
-        from app.core.tracker import FaceTracker
-
         BATCH_SIZE = 4
 
         for idx, (fpath, ftype) in enumerate(all_files):
             if processing_stop_flag:
                 await emit_log("🛑 Đã dừng theo yêu cầu.")
                 break
-
-            await asyncio.sleep(0.01)
 
             fname = os.path.basename(fpath)
             await emit_log(f"Đang xử lý: {fname}")
@@ -337,78 +327,112 @@ async def run_processing(config: ProcessConfig):
                                     np.array([SentenceTransformer.encode([t["text"]])[0] for t in bibs]),
                                     [{"source_path": fpath, "image_type": "image", "timestamp": 0, "frame_idx": 0, "text": t["text"], "score": t["score"], "type": "bib"} for t in bibs]
                                 )
+                vs.save()
             else:
-                cap = cv2.VideoCapture(fpath)
-                if cap.isOpened():
+                thumb_dir = os.path.join(source_dir, ".thumbnails")
+                os.makedirs(thumb_dir, exist_ok=True)
+                
+                frame_queue = queue.Queue(maxsize=30)
+                result_queue = queue.Queue()
+                stop_event = threading.Event()
+                
+                def read_worker():
+                    cap = cv2.VideoCapture(fpath)
+                    if not cap.isOpened():
+                        frame_queue.put(None)
+                        return
                     fps = cap.get(cv2.CAP_PROP_FPS) or 30
                     frame_count = 0
-                    tracker = FaceTracker() if do_face else None
-
-                    process_interval = config.frame_interval
-                    no_face_streak = 0
-                    next_process_frame = 0
-
-                    batch_frames = []
-                    batch_frame_counts = []
-                    batch_timestamps = []
-
-                    while cap.isOpened():
-                        if processing_stop_flag: break
-                        await asyncio.sleep(0.005)
-
+                    prev_gray = None
+                    
+                    while not stop_event.is_set() and not processing_stop_flag:
                         ret, frame = cap.read()
                         if not ret: break
                         frame_count += 1
+                        
+                        try:
+                            small = cv2.resize(frame, (160, 120))
+                            gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+                            if prev_gray is not None:
+                                diff = np.mean(cv2.absdiff(gray, prev_gray))
+                                if diff < 1.5:
+                                    continue
+                            prev_gray = gray
+                        except:
+                            pass
+                            
+                        frame_queue.put((frame, frame_count, frame_count / fps))
+                        
+                    cap.release()
+                    frame_queue.put(None)
 
-                        if frame_count < next_process_frame:
-                            del frame
-                            continue
-
-                        next_process_frame = frame_count + process_interval
-
+                def detect_worker():
+                    from app.core.tracker import FaceTracker
+                    tracker = FaceTracker() if do_face else None
+                    batch_frames, batch_frame_counts, batch_timestamps = [], [], []
+                    process_interval = config.frame_interval
+                    no_face_streak = 0
+                    next_process_frame = 0
+                    
+                    while not stop_event.is_set() and not processing_stop_flag:
+                        item = frame_queue.get()
+                        if item is None:
+                            if len(batch_frames) > 0:
+                                process_interval, no_face_streak = _process_video_batch(
+                                    batch_frames, batch_frame_counts, batch_timestamps,
+                                    tracker, result_queue, config, fpath, do_face, do_bib,
+                                    FaceProcessor, OCRProcessor, SentenceTransformer,
+                                    process_interval, no_face_streak, thumb_dir
+                                )
+                            if tracker and do_face and FaceProcessor:
+                                remaining = tracker.finalize()
+                                if remaining:
+                                    vectors = np.array([t["best_face"]["embedding"] for t in remaining])
+                                    metadata = [{"source_path": fpath, "image_type": "video", "timestamp": t["start_timestamp"], "end_timestamp": t["end_timestamp"], "frame_idx": t["last_seen_frame_idx"], "bbox": t["best_face"]["bbox"], "det_score": t["best_face"]["det_score"], "type": "face", "track_id": t["id"], "thumbnail_path": None} for t in remaining]
+                                    result_queue.put({"type": "face", "vectors": vectors, "metadata": metadata})
+                            result_queue.put(None)
+                            break
+                            
+                        frame, fcount, ts = item
+                        if fcount < next_process_frame: continue
+                        
+                        next_process_frame = fcount + process_interval
                         batch_frames.append(frame)
-                        batch_frame_counts.append(frame_count)
-                        batch_timestamps.append(frame_count / fps)
-
+                        batch_frame_counts.append(fcount)
+                        batch_timestamps.append(ts)
+                        
                         if len(batch_frames) >= BATCH_SIZE:
                             process_interval, no_face_streak = _process_video_batch(
                                 batch_frames, batch_frame_counts, batch_timestamps,
-                                tracker, vs, config, fpath, do_face, do_bib,
+                                tracker, result_queue, config, fpath, do_face, do_bib,
                                 FaceProcessor, OCRProcessor, SentenceTransformer,
-                                process_interval, no_face_streak
+                                process_interval, no_face_streak, thumb_dir
                             )
-                            batch_frames.clear()
-                            batch_frame_counts.clear()
-                            batch_timestamps.clear()
+                            batch_frames.clear(); batch_frame_counts.clear(); batch_timestamps.clear()
 
-                    if len(batch_frames) > 0:
-                        _process_video_batch(
-                            batch_frames, batch_frame_counts, batch_timestamps,
-                            tracker, vs, config, fpath, do_face, do_bib,
-                            FaceProcessor, OCRProcessor, SentenceTransformer,
-                            process_interval, no_face_streak
-                        )
+                def save_worker():
+                    while not stop_event.is_set() and not processing_stop_flag:
+                        item = result_queue.get()
+                        if item is None: break
+                        
+                        if item["type"] == "face":
+                            vs.add_vectors(item["vectors"], item["metadata"])
+                        elif item["type"] == "bib":
+                            vs.add_bib_vectors(item["vectors"], item["metadata"])
 
-                    if tracker and do_face and FaceProcessor:
-                        remaining = tracker.finalize()
-                        if remaining:
-                            # Thumbnail fallback cho frame sót lại
-                            thumb_dir = os.path.join(source_dir, ".thumbnails")
-                            os.makedirs(thumb_dir, exist_ok=True)
-                            thumb_path = os.path.join(thumb_dir, f"face_{uuid.uuid4().hex[:8]}.jpg")
-                            try:
-                                preview = cv2.resize(frame if frame is not None else np.zeros((320, 320, 3)), (320, 320))
-                                cv2.imwrite(thumb_path, preview)
-                            except:
-                                thumb_path = None
-                                
-                            vs.add_vectors(
-                                np.array([t["best_face"]["embedding"] for t in remaining]),
-                                [{"source_path": fpath, "image_type": "video", "timestamp": t["start_timestamp"], "end_timestamp": t["end_timestamp"], "frame_idx": t["last_seen_frame_idx"], "bbox": t["best_face"]["bbox"], "det_score": t["best_face"]["det_score"], "type": "face", "track_id": t["id"], "thumbnail_path": thumb_path} for t in remaining]
-                            )
-                    cap.release()
+                t_read = threading.Thread(target=read_worker)
+                t_detect = threading.Thread(target=detect_worker)
+                t_save = threading.Thread(target=save_worker)
+                
+                t_read.start(); t_detect.start(); t_save.start()
 
-            vs.save()
+                while t_read.is_alive() or t_detect.is_alive() or t_save.is_alive():
+                    if processing_stop_flag: stop_event.set()
+                    await asyncio.sleep(0.1)
+                    
+                t_read.join(); t_detect.join(); t_save.join()
+                vs.save()
+
             await emit_progress(idx + 1, total)
 
         await emit_log("Hoàn tất toàn bộ files!")

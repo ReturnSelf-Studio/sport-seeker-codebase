@@ -27,6 +27,7 @@ class FaceProcessor:
         provider = settings.ONNX_PROVIDER
         ctx_id = settings.INSIGHTFACE_CTX_ID
         models_root = str(settings.MODELS_ROOT)
+        print(f"[GPU Check] Đang khởi tạo InsightFace với ONNX Provider: {provider}", flush=True)
 
         self._app = insightface.app.FaceAnalysis(
             name=settings.INSIGHTFACE_MODEL_NAME,
@@ -37,6 +38,7 @@ class FaceProcessor:
         self._provider = provider
 
         logger.info("FaceProcessor sẵn sàng — provider: %s", self._provider)
+        print(f"[GPU Check] InsightFace đã khởi tạo xong trên: {self._provider}", flush=True)
 
     @property
     def provider(self) -> str:

@@ -22,7 +22,9 @@ class OCRProcessor:
         _suppress_paddle_logs()
         from paddleocr import PaddleOCR
 
-        self.ocr = PaddleOCR(lang=lang)
+        print("[GPU Check] Đang khởi tạo PaddleOCR...", flush=True)
+        self.ocr = PaddleOCR(lang=lang, use_angle_cls=False, show_log=False)
+        print("[GPU Check] PaddleOCR đã khởi tạo xong.", flush=True)
 
     def get_text(self, img_array: np.ndarray) -> List[Dict]:
         """
