@@ -196,40 +196,96 @@ class _SearchPageState extends State<SearchPage> {
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 200,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
           childAspectRatio: 0.8),
       itemCount: _results.length,
       itemBuilder: (context, index) {
         final r = _results[index];
         final sourcePath = r['source_path'] ?? r['video_path'];
         final isVideo = (r['image_type'] ?? r['type']) == 'video';
+        final thumbnailPath = r['thumbnail_path'];
+        final score = r['score'] ?? 0.0;
+        final timestamp = r['timestamp'] ?? 0.0;
 
         return InkWell(
           onTap: () => _openFile(sourcePath),
           child: Card(
             color: AppTheme.bgElevated,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: const BorderSide(color: AppTheme.border),
+            ),
+            child: Stack(
               children: [
-                Expanded(
-                  child: isVideo
-                      ? const Icon(Icons.videocam,
-                          size: 50,
-                          color: AppTheme.textMuted)
-                      : Image.file(File(sourcePath),
-                          fit: BoxFit.cover,
-                          errorBuilder: (c, e, s) =>
-                              const Icon(Icons.broken_image)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: thumbnailPath != null
+                          ? Image.file(File(thumbnailPath),
+                              fit: BoxFit.cover,
+                              errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
+                          : isVideo
+                              ? const Icon(Icons.videocam, size: 50, color: AppTheme.textMuted)
+                              : Image.file(File(sourcePath),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (c, e, s) => const Icon(Icons.broken_image)),
+                    ),
+                    Container(
+                      color: AppTheme.bgSurface,
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(sourcePath.split('/').last,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary)),
+                          const SizedBox(height: 4),
+                          Text(isVideo ? 'Video • ${timestamp.toStringAsFixed(1)}s' : 'Hình ảnh',
+                              style: const TextStyle(
+                                  fontSize: 10, color: AppTheme.textSecondary)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(sourcePath.split('/').last,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 10, color: AppTheme.textSecondary)),
-                ),
+                if (score > 0)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.info.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text('${(score * 100).toStringAsFixed(0)}%',
+                          style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.bgBase)),
+                    ),
+                  ),
+                if (isVideo)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.play_arrow,
+                          color: Colors.white, size: 16),
+                    ),
+                  ),
               ],
             ),
           ),

@@ -118,7 +118,7 @@ class _ProjectManagerPageState extends State<ProjectManagerPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('QUẢN LÝ DỰ ÁN GIẢI CHẠY', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'monospace', color: AppTheme.textPrimary)),
+          const Text('QUẢN LÝ DỰ ÁN', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'monospace', color: AppTheme.textPrimary)),
           const Divider(color: AppTheme.border, height: 32),
           _buildCreateForm(),
           const SizedBox(height: 24),

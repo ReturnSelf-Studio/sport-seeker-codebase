@@ -5,6 +5,7 @@ import os
 import sys
 import threading
 import time
+import uuid
 from pathlib import Path
 from typing import List, Optional
 
@@ -24,8 +25,8 @@ FaceProcessor = None
 OCRProcessor = None
 SentenceTransformer = None
 
-model_status = "loading"  # Trạng thái model toàn cục
-model_loading_message = "Đang chuẩn bị khởi tạo..." # Thông báo chi tiết
+model_status = "loading"
+model_loading_message = "Đang chuẩn bị khởi tạo..."
 
 app = FastAPI(title="Sport Seeker Backend API")
 
@@ -181,6 +182,10 @@ class ProcessConfig(BaseModel):
 
 def _process_video_batch(batch_frames, batch_frame_counts, batch_timestamps, tracker, vs, config, fpath, do_face, do_bib, FaceProcessor, OCRProcessor, SentenceTransformer, process_interval, no_face_streak):
     batch_faces = []
+    project_info = pm.get_project(config.project_id)
+    thumb_dir = os.path.join(project_info["source_dir"], ".thumbnails")
+    os.makedirs(thumb_dir, exist_ok=True)
+
     if do_face and FaceProcessor:
         try:
             batch_faces = FaceProcessor.get_embeddings_batch(batch_frames)
@@ -206,9 +211,16 @@ def _process_video_batch(batch_frames, batch_frame_counts, batch_timestamps, tra
         if tracker:
             finished = tracker.update(b_faces, b_fcount, b_ts)
             if finished:
+                thumb_path = os.path.join(thumb_dir, f"face_{uuid.uuid4().hex[:8]}.jpg")
+                try:
+                    preview = cv2.resize(b_frame, (320, int(b_frame.shape[0] * 320 / b_frame.shape[1])))
+                    cv2.imwrite(thumb_path, preview)
+                except:
+                    thumb_path = None
+                    
                 vs.add_vectors(
                     np.array([t["best_face"]["embedding"] for t in finished]),
-                    [{"source_path": fpath, "image_type": "video", "timestamp": t["start_timestamp"], "end_timestamp": t["end_timestamp"], "frame_idx": t["last_seen_frame_idx"], "bbox": t["best_face"]["bbox"], "det_score": t["best_face"]["det_score"], "type": "face", "track_id": t["id"]} for t in finished]
+                    [{"source_path": fpath, "image_type": "video", "timestamp": t["start_timestamp"], "end_timestamp": t["end_timestamp"], "frame_idx": t["last_seen_frame_idx"], "bbox": t["best_face"]["bbox"], "det_score": t["best_face"]["det_score"], "type": "face", "track_id": t["id"], "thumbnail_path": thumb_path} for t in finished]
                 )
 
         if do_bib and OCRProcessor and SentenceTransformer and b_faces:
@@ -230,9 +242,16 @@ def _process_video_batch(batch_frames, batch_frame_counts, batch_timestamps, tra
                     if texts:
                         bibs = [t for t in texts if any(c.isdigit() for c in t["text"]) and config.bib_min <= len(t["text"].strip()) <= config.bib_max]
                         if bibs:
+                            thumb_path = os.path.join(thumb_dir, f"bib_{uuid.uuid4().hex[:8]}.jpg")
+                            try:
+                                preview = cv2.resize(b_frame, (320, int(b_frame.shape[0] * 320 / b_frame.shape[1])))
+                                cv2.imwrite(thumb_path, preview)
+                            except:
+                                thumb_path = None
+                                
                             vs.add_bib_vectors(
                                 np.array([SentenceTransformer.encode([t["text"]])[0] for t in bibs]),
-                                [{"source_path": fpath, "image_type": "video", "timestamp": b_ts, "frame_idx": b_fcount, "text": t["text"], "score": t["score"], "type": "bib"} for t in bibs]
+                                [{"source_path": fpath, "image_type": "video", "timestamp": b_ts, "frame_idx": b_fcount, "text": t["text"], "score": t["score"], "type": "bib", "thumbnail_path": thumb_path} for t in bibs]
                             )
                 except Exception:
                     pass
@@ -373,9 +392,19 @@ async def run_processing(config: ProcessConfig):
                     if tracker and do_face and FaceProcessor:
                         remaining = tracker.finalize()
                         if remaining:
+                            # Thumbnail fallback cho frame sót lại
+                            thumb_dir = os.path.join(source_dir, ".thumbnails")
+                            os.makedirs(thumb_dir, exist_ok=True)
+                            thumb_path = os.path.join(thumb_dir, f"face_{uuid.uuid4().hex[:8]}.jpg")
+                            try:
+                                preview = cv2.resize(frame if frame is not None else np.zeros((320, 320, 3)), (320, 320))
+                                cv2.imwrite(thumb_path, preview)
+                            except:
+                                thumb_path = None
+                                
                             vs.add_vectors(
                                 np.array([t["best_face"]["embedding"] for t in remaining]),
-                                [{"source_path": fpath, "image_type": "video", "timestamp": t["start_timestamp"], "end_timestamp": t["end_timestamp"], "frame_idx": t["last_seen_frame_idx"], "bbox": t["best_face"]["bbox"], "det_score": t["best_face"]["det_score"], "type": "face", "track_id": t["id"]} for t in remaining]
+                                [{"source_path": fpath, "image_type": "video", "timestamp": t["start_timestamp"], "end_timestamp": t["end_timestamp"], "frame_idx": t["last_seen_frame_idx"], "bbox": t["best_face"]["bbox"], "det_score": t["best_face"]["det_score"], "type": "face", "track_id": t["id"], "thumbnail_path": thumb_path} for t in remaining]
                             )
                     cap.release()
 
