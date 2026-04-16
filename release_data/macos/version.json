@@ -1,0 +1,28 @@
+{
+  "version": "1.0.1",
+  "base_url": "https://raw.githubusercontent.com/ReturnSelf-Studio/sport-seeker-codebase/main/release_data/macos/",
+  "chunks": [
+    "payload.part000",
+    "payload.part001",
+    "payload.part002",
+    "payload.part003",
+    "payload.part004",
+    "payload.part005",
+    "payload.part006",
+    "payload.part007",
+    "payload.part008",
+    "payload.part009",
+    "payload.part010",
+    "payload.part011",
+    "payload.part012",
+    "payload.part013",
+    "payload.part014",
+    "payload.part015",
+    "payload.part016",
+    "payload.part017",
+    "payload.part018",
+    "payload.part019",
+    "payload.part020",
+    "payload.part021"
+  ]
+}
