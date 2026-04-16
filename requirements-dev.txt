@@ -1,0 +1,6 @@
+# Dev tools — cài thêm sau requirements platform
+# Install: uv pip install -r requirements-dev.txt
+
+ruff>=0.4          # linter + formatter
+pytest>=8.0
+httpx>=0.24.0      # Test FastAPI

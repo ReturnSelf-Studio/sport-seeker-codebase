@@ -28,3 +28,16 @@ data/
 frontend/node_modules/
 frontend/dist/
 frontend/.env.local
+
+models
+
+.env
+SportSeeker_Windows.zip
+SportSeeker_macOS.zip
+.devtools/*
+SportSeekerAPI.spec
+pubspec.lock
+.flutter-plugins-dependencies
+release_data/
+__init__.py
+

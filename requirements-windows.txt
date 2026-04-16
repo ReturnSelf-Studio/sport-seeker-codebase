@@ -1,0 +1,35 @@
+# requirements-windows.txt
+# Windows (x86_64) — NVIDIA GPU optional
+# Install: uv pip install -r requirements-windows.txt
+
+# Core
+numpy>=1.24,<2.0.0
+opencv-python>=4.8
+pyarrow>=17.0.0
+pandas>=2.0.3
+
+# Face recognition — ONNX với DirectML (GPU acceleration)
+insightface>=0.7.3
+onnxruntime-directml>=1.16  # DirectML provider cho Windows GPU
+
+# FAISS
+faiss-cpu>=1.7.4
+
+# OCR — PaddleOCR (download models on first run, KHÔNG bundle)
+paddlepaddle>=2.6.0
+paddleocr>=2.7.3,<3.0.0
+
+# Text embeddings
+sentence-transformers>=2.2.2
+
+# Backend API
+fastapi>=0.100.0
+uvicorn>=0.23.0
+websockets>=11.0.3
+python-multipart>=0.0.6
+
+# System Utils (Cho Zombie Killer trên Windows)
+psutil>=5.9.0
+
+# Build utils
+pyinstaller>=6.3

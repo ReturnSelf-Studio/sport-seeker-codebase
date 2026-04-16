@@ -1,0 +1,55 @@
+# Các file do Flutter tự tạo (Build artifacts)
+bin/
+build/
+
+# Các file công cụ của Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+
+# File log
+*.log
+
+# Thư mục chứa các symbol gỡ lỗi của iOS
+/ios/Flutter/App.framework
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/flutter_export_environment.sh
+/ios/ServiceDefinitions.json
+/ios/Runner/GeneratedPluginRegistrant.*
+
+# Android-specific
+.gradle/
+/android/app/debug/
+/android/app/profile/
+/android/app/release/
+/android/local.properties
+/android/key.properties
+/android/app/src/main/res/raw/auth_config.json
+*.keystore
+*.jks
+
+# Web-specific
+build/web/
+
+# macOS/Linux/Windows-specific
+macos/
+linux/
+windows/
+
+# Các file cấu hình của IDE (VS Code, Android Studio, Xcode)
+.vscode/
+.idea/
+*.iml
+*.iws
+.project
+.settings/
+.DS_Store
+.metadata
+
+# File chứa thông tin nhạy cảm (Nếu bạn dùng flutter_dotenv)
+.env*
+
+assets/backend/api_payload.zip
+lib/core/env.dart

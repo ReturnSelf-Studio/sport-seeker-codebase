@@ -1,0 +1,17 @@
+# =================================================================
+# CẤU HÌNH OTA UPDATE (GITHUB RAW)
+# =================================================================
+
+# URL chứa các chunk và version.json của mã nguồn Backend (Executable)
+BACKEND_UPDATE_URL="https://raw.githubusercontent.com/YourName/YourRepo/main/release_data/"
+
+# URL chứa các chunk và models_version.json của AI Models (Weights)
+MODELS_UPDATE_URL="https://raw.githubusercontent.com/YourName/YourRepo/main/release_models/"
+
+# =================================================================
+# DEV ONLY
+# =================================================================
+
+# Thư mục model gốc trên máy của bạn để chạy lệnh 'chunk-models'
+# Ví dụ: "D:/Models" hoặc "/Users/name/Models"
+LOCAL_MODELS_SOURCE_DIR="D:/SportSeeker_Dev_Models"

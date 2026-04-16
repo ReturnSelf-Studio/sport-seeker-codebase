@@ -1,0 +1,32 @@
+# requirements-macos-arm64.txt
+# macOS Apple Silicon (M1/M2/M3/M4)
+# Install: uv pip install -r requirements-macos-arm64.txt
+
+# Core
+numpy>=1.24,<2.0.0
+opencv-python>=4.8
+pyarrow>=17.0.0
+pandas>=2.0.3
+
+# Face recognition — ONNX với CoreML acceleration
+insightface>=0.7.3
+onnxruntime-silicon>=1.16  # CoreML provider cho Apple Silicon
+
+# FAISS (CPU build — Apple Silicon không có GPU FAISS)
+faiss-cpu>=1.7.4
+
+# OCR — PaddleOCR (download models on first run, KHÔNG bundle)
+paddlepaddle>=2.6.0
+paddleocr>=2.7.3,<3.0.0
+
+# Text embeddings
+sentence-transformers>=2.2.2
+
+# Backend API
+fastapi>=0.100.0
+uvicorn>=0.23.0
+websockets>=11.0.3
+python-multipart>=0.0.6
+
+# Build utils
+pyinstaller>=6.3
