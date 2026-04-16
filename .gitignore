@@ -40,4 +40,9 @@ SportSeeker_macOS.zip
 scripts/
 flutter_ui/
 app/
-
+dotenv
+main.py
+pyproject.toml
+requirements*
+SportSeekerAPI.spec
+uv.lock
