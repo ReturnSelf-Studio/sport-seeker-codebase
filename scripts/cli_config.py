@@ -14,7 +14,7 @@ FLUTTER_UI_DIR = ROOT_DIR / "flutter_ui"
 BACKEND_ASSET_DIR = FLUTTER_UI_DIR / "assets" / "backend"
 RELEASE_DATA_DIR = ROOT_DIR / "release_data"
 RELEASE_MODELS_DIR = ROOT_DIR / "release_models"
-RELEASE_INFO_FILE = ROOT_DIR / "release_info.json"
+VERSION_FILE = ROOT_DIR / "version.json"
 
 OS_NAME = platform.system()
 

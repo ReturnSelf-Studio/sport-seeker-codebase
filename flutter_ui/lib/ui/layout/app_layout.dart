@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 
 import '../../core/backend_manager.dart';
+import '../../core/env.dart';
 import '../theme.dart';
 import '../pages/project_manager_page.dart';
 import '../pages/project_detail_page.dart';
@@ -260,7 +261,7 @@ class _AppLayoutState extends State<AppLayout> {
               TextSpan(
                 children: [
                   TextSpan(
-                      text: 'v1.0.0-beta\n',
+                      text: 'v${Env.fullVersion}\n',
                       style:
                           TextStyle(color: AppTheme.textMuted, fontSize: 11)),
                   TextSpan(

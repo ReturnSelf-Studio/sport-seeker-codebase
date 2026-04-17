@@ -105,4 +105,4 @@ git push origin main
   Hãy xóa sạch dữ liệu cache bằng lệnh:
   `bash scripts/manage.sh clean`
 
-*** *Document generated for Sport Seeker v1.0.0-beta*
+*** *Document generated for Sport Seeker v1.0.4*

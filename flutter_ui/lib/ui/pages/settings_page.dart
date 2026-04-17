@@ -5,8 +5,9 @@ import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/backend_manager.dart';
-import '../theme.dart';
 import '../../core/model_manager.dart';
+import '../../core/env.dart';
+import '../theme.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -506,7 +507,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Phiên bản v1.0.0-beta',
+                  'Phiên bản v${Env.fullVersion}',
                   style: TextStyle(
                       fontSize: 12,
                       color: AppTheme.textMuted,

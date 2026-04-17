@@ -41,36 +41,65 @@ app.add_middleware(
 
 pm = ProjectManager()
 
+def write_checkpoint(msg):
+    try:
+        log_dir = Path(os.environ.get('APPDATA', '')) / "SportSeeker" / "logs" if sys.platform == 'win32' else Path.home() / "SportSeeker" / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        # Ghi thêm dòng checkpoint với thời gian thực
+        with open(log_dir / "checkpoints.log", "a", encoding="utf-8") as f:
+            f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
+    except:
+        pass
+
 def background_model_loader():
     global FaceProcessor, OCRProcessor, SentenceTransformer, model_status, model_loading_message
     try:
-        print("[Backend] Bắt đầu khởi tạo AI Models...", flush=True)
+        write_checkpoint("==================================================")
+        write_checkpoint("▶ BẮT ĐẦU NẠP AI MODELS")
+        
+        model_loading_message = "Đang nạp AI Models vào RAM/VRAM..."
+        print(f"[Backend] {model_loading_message}", flush=True)
+        sys.stderr.write("5%|\n")
+        sys.stderr.flush()
 
-        if FaceProcessor is None:
-            model_loading_message = "Đang nạp mô hình khuôn mặt (InsightFace)..."
-            print(f"[Backend] {model_loading_message}", flush=True)
-            from app.core.face_processor import FaceProcessor as FP
-            FaceProcessor = FP()
+        # 1. Text Embedding
+        write_checkpoint("⏳ [1/3] Đang nạp Text Embedding...")
+        model_loading_message = "Đang nạp mô hình Text Embedding (1/3)..."
+        from sentence_transformers import SentenceTransformer as ST
+        from app.core.config import settings
+        SentenceTransformer = ST(settings.TEXT_EMBEDDING_MODEL)
+        sys.stderr.write("35%|\n")
+        sys.stderr.flush()
+        write_checkpoint("✅ [1/3] XONG Text Embedding!")
 
-        if OCRProcessor is None:
-            model_loading_message = "Đang nạp mô hình đọc số BIB (PaddleOCR)..."
-            print(f"[Backend] {model_loading_message}", flush=True)
-            from app.core.ocr_processor import OCRProcessor as OP
-            OCRProcessor = OP()
+        # 2. InsightFace
+        write_checkpoint("⏳ [2/3] Đang nạp InsightFace...")
+        model_loading_message = "Đang nạp mô hình khuôn mặt InsightFace (2/3)..."
+        from app.core.face_processor import FaceProcessor as FP
+        FaceProcessor = FP()
+        sys.stderr.write("70%|\n")
+        sys.stderr.flush()
+        write_checkpoint("✅ [2/3] XONG InsightFace!")
 
-        if SentenceTransformer is None:
-            model_loading_message = "Đang nạp mô hình Text Embedding (SentenceTransformer)..."
-            print(f"[Backend] {model_loading_message}", flush=True)
-            from sentence_transformers import SentenceTransformer as ST
-            SentenceTransformer = ST(settings.TEXT_EMBEDDING_MODEL)
+        # 3. PaddleOCR
+        write_checkpoint("⏳ [3/3] Đang nạp PaddleOCR...")
+        model_loading_message = "Đang nạp mô hình đọc số BIB PaddleOCR (3/3)..."
+        from app.core.ocr_processor import OCRProcessor as OP
+        OCRProcessor = OP()
+        sys.stderr.write("100%|\n")
+        sys.stderr.flush()
+        write_checkpoint("✅ [3/3] XONG PaddleOCR!")
 
         model_status = "ready"
         model_loading_message = "Khởi tạo AI Models thành công!"
         print("[Backend] Khởi tạo AI Models thành công!", flush=True)
+        write_checkpoint("🎉 HOÀN TẤT TOÀN BỘ AI MODELS!")
+        
     except Exception as e:
         print(f"[Backend] Lỗi khởi tạo models: {e}", flush=True)
         model_status = "error"
-        model_loading_message = f"Lỗi: {str(e)}"
+        model_loading_message = f"Lỗi khởi tạo AI: {str(e)}"
+        write_checkpoint(f"❌ LỖI KHỞI TẠO: {str(e)}")
 
 @app.on_event("startup")
 def startup_event():

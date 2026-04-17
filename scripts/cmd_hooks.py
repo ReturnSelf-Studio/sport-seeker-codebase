@@ -2,7 +2,7 @@ import json
 import os
 import sys
 from cli_config import (
-    RELEASE_INFO_FILE, ROOT_DIR, RELEASE_MODELS_DIR, RELEASE_DATA_DIR,
+    VERSION_FILE, ROOT_DIR, RELEASE_MODELS_DIR, RELEASE_DATA_DIR,
     get_file_hash
 )
 from cmd_ota import chunk_backend, chunk_models
@@ -15,12 +15,12 @@ def pre_commit():
     res = run_cmd("git branch --show-current", capture_output=True)
 
     if res.stdout.strip() == "main":
-        if not RELEASE_INFO_FILE.exists():
+        if not VERSION_FILE.exists():
             print("⚠️ Không tìm thấy release_info.json, sử dụng version mặc định.")
             backend_ver = "1.0.0"
             model_ver = "1.0.0"
         else:
-            info = json.loads(RELEASE_INFO_FILE.read_text(encoding="utf-8"))
+            info = json.loads(VERSION_FILE.read_text(encoding="utf-8"))
             backend_ver = info.get("backend_version", "1.0.0")
             model_ver = info.get("model_version", "1.0.0")
 
@@ -54,8 +54,8 @@ def pre_commit():
             print(f"⏭️ Models không có sự thay đổi (Trùng Hash: {current_hash[:8]}).")
             print("👉 Bỏ qua cắt nhỏ Models để tiết kiệm thời gian.")
 
-        if RELEASE_INFO_FILE.exists():
-            run_cmd("git add release_info.json")
+        if VERSION_FILE.exists():
+            run_cmd("git add version.json")
 
         print("\n✅ PRE-COMMIT HOÀN TẤT, SẴN SÀNG COMMIT!")
     else:

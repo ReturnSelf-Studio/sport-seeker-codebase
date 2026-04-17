@@ -19,6 +19,10 @@ def build_ui_macos():
     print(f"   🚀 BUILD FLUTTER UI & PACKAGING (macOS)")
     print("===================================================")
 
+    print("\n[0] Cập nhật Build Number...")
+    run_cmd(f"{sys.executable} scripts/increment_build.py")
+    run_cmd(f"{sys.executable} scripts/generate_env_dart.py")
+    
     run_cmd("flutter clean", cwd=FLUTTER_UI_DIR)
     run_cmd("flutter pub get", cwd=FLUTTER_UI_DIR)
 
