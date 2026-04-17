@@ -3,7 +3,8 @@ import subprocess
 import shutil
 import sys
 import glob
-from cli_config import OS_NAME, BACKEND_ASSET_DIR, run_cmd, ROOT_DIR
+from cli_config import OS_NAME, BACKEND_ASSET_DIR, ROOT_DIR
+from core_utils import run_cmd, kill_sport_seeker_processes
 
 def build_backend():
     print("\n===================================================")
@@ -59,14 +60,4 @@ def build_backend():
     print(f"✅ XONG! Binary đã được nén tại: {zip_path}.zip")
 
 def kill_backend():
-    print("\n🧹 Đang dọn dẹp các tiến trình SportSeeker Backend...")
-    if OS_NAME == "Windows":
-        subprocess.run("taskkill /F /IM SportSeekerAPI.exe /T", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run("taskkill /F /IM sport_seeker.exe /T", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run('for /f "tokens=5" %a in (\'netstat -aon ^| findstr :10330\') do taskkill /F /PID %a /T', shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    else:
-        subprocess.run("pkill -9 -f 'Sport Seeker'", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run("pkill -9 -f 'SportSeekerAPI'", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run("lsof -t -i :10330 | xargs kill -9", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-    print("✅ Hoàn tất dọn dẹp tiến trình!")
+    kill_sport_seeker_processes()

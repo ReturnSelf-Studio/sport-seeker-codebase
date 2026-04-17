@@ -1,11 +1,12 @@
 import sys
 import argparse
 import platform
-from cli_config import check_env, run_cmd
+from cli_config import check_env
 from cmd_backend import build_backend, kill_backend
 from cmd_ota import chunk_backend, chunk_models
 from cmd_system import clean_all
 from cmd_hooks import pre_commit
+from core_utils import run_cmd
 
 def generate_env_dart():
     print("⏳ [2] Đang tự động tạo env.dart từ .env...")

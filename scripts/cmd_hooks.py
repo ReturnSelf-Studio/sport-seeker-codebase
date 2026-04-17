@@ -3,9 +3,10 @@ import os
 import sys
 from cli_config import (
     RELEASE_INFO_FILE, ROOT_DIR, RELEASE_MODELS_DIR, RELEASE_DATA_DIR,
-    run_cmd, get_file_hash
+    get_file_hash
 )
 from cmd_ota import chunk_backend, chunk_models
+from core_utils import run_cmd
 
 def pre_commit():
     print("===================================================")

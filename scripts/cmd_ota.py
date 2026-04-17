@@ -2,8 +2,9 @@ import os
 import sys
 from cli_config import (
     OS_NAME, RELEASE_DATA_DIR, RELEASE_MODELS_DIR, BACKEND_ASSET_DIR, ROOT_DIR,
-    get_env, chunk_file, run_cmd
+    get_env, chunk_file
 )
+from core_utils import run_cmd
 
 def chunk_backend(version="1.0.0"):
     print("\n===================================================")

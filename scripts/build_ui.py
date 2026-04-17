@@ -4,17 +4,10 @@ import shutil
 import subprocess
 import platform
 from pathlib import Path
+from core_utils import run_cmd
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 FLUTTER_UI_DIR = ROOT_DIR / "flutter_ui"
-
-def run_cmd(cmd, cwd=None):
-    print(f"\n> Running: {cmd}")
-    result = subprocess.run(cmd, shell=True, cwd=cwd or ROOT_DIR, text=True)
-    if result.returncode != 0:
-        print(f"❌ Lệnh thất bại với mã lỗi {result.returncode}: {cmd}")
-        sys.exit(result.returncode)
-    return result
 
 def build_ui_macos():
     if platform.system() != "Darwin":

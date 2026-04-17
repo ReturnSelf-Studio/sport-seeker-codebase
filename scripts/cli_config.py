@@ -72,15 +72,6 @@ def check_env():
         sys.exit(1)
     print("✅ Cấu hình môi trường hợp lệ.")
 
-def run_cmd(cmd, cwd=None, capture_output=False):
-    """Chạy lệnh shell và xử lý lỗi"""
-    if not capture_output: print(f"\n> Running: {cmd}")
-    result = subprocess.run(cmd, shell=True, cwd=cwd or ROOT_DIR, capture_output=capture_output, text=True)
-    if result.returncode != 0 and not capture_output:
-        print(f"❌ Lệnh thất bại với mã lỗi {result.returncode}: {cmd}")
-        sys.exit(result.returncode)
-    return result
-
 def chunk_file(source_zip, out_dir, base_url, json_filename, version="1.0.0"):
     """Chia nhỏ file zip thành các chunk 25MB cho OTA"""
     if not os.path.exists(source_zip):
