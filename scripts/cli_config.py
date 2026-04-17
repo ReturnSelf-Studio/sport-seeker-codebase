@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 import platform
 import subprocess
 import hashlib
@@ -33,6 +34,36 @@ def get_env(key, default=""):
         if line.startswith(key):
             return line.split("=", 1)[1].strip().strip('"').strip("'")
     return default
+
+def copy_dir(src: Path, dst: Path) -> bool:
+    """Copy src -> dst nếu src là directory. Trả về True nếu thành công."""
+    if src.is_dir():
+        shutil.copytree(src, dst, dirs_exist_ok=True)
+        return True
+    return False
+
+
+def copy_first_found(candidates: list[Path], dst: Path, label: str) -> bool:
+    """Copy path đầu tiên tìm thấy trong candidates vào dst. Dừng sớm."""
+    for src in candidates:
+        if copy_dir(src, dst):
+            print(f"  -> OK: {src}")
+            return True
+    print(f"  -> SKIP: Khong tim thay {label}.")
+    return False
+
+
+def copy_all_found(candidates: list[tuple[Path, Path]], label: str) -> bool:
+    """Copy tất cả các cặp (src, dst) tìm thấy — không dừng sớm."""
+    found = False
+    for src, dst in candidates:
+        if copy_dir(src, dst):
+            print(f"  -> OK: {src}")
+            found = True
+    if not found:
+        print(f"  -> SKIP: Khong tim thay {label}.")
+    return found
+
 
 def check_env():
     print("⏳ [1] Kiểm tra cấu hình môi trường (.env)...")
