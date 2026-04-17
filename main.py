@@ -32,7 +32,8 @@ def setup_logging():
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "backend.log"
 
-    handler = RotatingFileHandler(log_file, maxBytes=5*1024*1024, backupCount=5, encoding='utf-8')
+    # SET SIZE: 20MB per file, giữ 5 bản sao lưu
+    handler = RotatingFileHandler(log_file, maxBytes=20*1024*1024, backupCount=5, encoding='utf-8')
     formatter = logging.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     handler.setFormatter(formatter)
 
@@ -47,24 +48,23 @@ def setup_logging():
             self.log_level = log_level
 
         def write(self, message):
-            # 1. Ghi ra file log (luôn dùng UTF-8 nên tiếng Việt thoải mái)
             if message.strip():
                 self.logger.log(self.log_level, message.strip())
-            
-            # 2. Đẩy ra console gốc cho Flutter đọc
             try:
                 self.original_stream.write(message)
                 self.original_stream.flush()
-            except UnicodeEncodeError:
-                # Nếu console của Windows bị mù tiếng Việt -> Ép bỏ dấu/ký tự lạ để không bị crash luồng
-                safe_msg = message.encode('ascii', errors='ignore').decode('ascii')
-                self.original_stream.write(safe_msg)
-                self.original_stream.flush()
+            except (UnicodeEncodeError, Exception):
+                # Nếu console Windows không hỗ trợ tiếng Việt, in bản không dấu để tránh crash luồng
+                try:
+                    safe_msg = message.encode('ascii', errors='ignore').decode('ascii')
+                    self.original_stream.write(safe_msg)
+                    self.original_stream.flush()
+                except:
+                    pass
 
         def flush(self):
             self.original_stream.flush()
 
-        # FIX: Chuyển tiếp các hàm đặc biệt (như isatty) về luồng hệ thống gốc để Uvicorn không bị crash
         def __getattr__(self, attr):
             return getattr(self.original_stream, attr)
 

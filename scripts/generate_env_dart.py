@@ -49,7 +49,7 @@ class Env {{
   static const String appVersion = "{app_ver}";
   static const int buildNumber = {build_num};
   static const String platform = "{os_name}";
-  static const String fullVersion = "{app_ver}+{build_num} ($os_name)";
+  static const String fullVersion = "{app_ver}+{build_num} ({os_name})";
 
   // Backend
   static const String backendBaseUrl = "{backend_url}";

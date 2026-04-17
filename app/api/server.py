@@ -43,63 +43,56 @@ pm = ProjectManager()
 
 def write_checkpoint(msg):
     try:
-        log_dir = Path(os.environ.get('APPDATA', '')) / "SportSeeker" / "logs" if sys.platform == 'win32' else Path.home() / "SportSeeker" / "logs"
+        # Sử dụng đường dẫn tuyệt đối chính xác
+        if sys.platform == 'win32':
+            log_dir = Path(os.environ.get('APPDATA', '')) / "SportSeeker" / "logs"
+        else:
+            log_dir = Path.home() / "SportSeeker" / "logs"
+        
         log_dir.mkdir(parents=True, exist_ok=True)
-        # Ghi thêm dòng checkpoint với thời gian thực
-        with open(log_dir / "checkpoints.log", "a", encoding="utf-8") as f:
+        cp_file = log_dir / "checkpoints.log"
+        
+        with open(cp_file, "a", encoding="utf-8") as f:
             f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
+            f.flush() # Ép ghi vào đĩa ngay lập tức
     except:
         pass
 
 def background_model_loader():
     global FaceProcessor, OCRProcessor, SentenceTransformer, model_status, model_loading_message
     try:
-        write_checkpoint("==================================================")
-        write_checkpoint("▶ BẮT ĐẦU NẠP AI MODELS")
+        write_checkpoint("▶ BẮT ĐẦU KHỞI TẠO HỆ THỐNG AI")
         
-        model_loading_message = "Đang nạp AI Models vào RAM/VRAM..."
-        print(f"[Backend] {model_loading_message}", flush=True)
-        sys.stderr.write("5%|\n")
-        sys.stderr.flush()
-
-        # 1. Text Embedding
+        # Nạp Text Embedding (Model nhẹ, làm nhanh để user thấy tiến trình chạy ngay)
         write_checkpoint("⏳ [1/3] Đang nạp Text Embedding...")
-        model_loading_message = "Đang nạp mô hình Text Embedding (1/3)..."
         from sentence_transformers import SentenceTransformer as ST
-        from app.core.config import settings
         SentenceTransformer = ST(settings.TEXT_EMBEDDING_MODEL)
-        sys.stderr.write("35%|\n")
-        sys.stderr.flush()
-        write_checkpoint("✅ [1/3] XONG Text Embedding!")
+        sys.stderr.write("30%|\n")
+        write_checkpoint("✅ XONG Text Embedding.")
 
-        # 2. InsightFace
-        write_checkpoint("⏳ [2/3] Đang nạp InsightFace...")
-        model_loading_message = "Đang nạp mô hình khuôn mặt InsightFace (2/3)..."
+        # Nạp InsightFace
+        write_checkpoint("⏳ [2/3] Đang nạp InsightFace (Khuôn mặt)...")
         from app.core.face_processor import FaceProcessor as FP
         FaceProcessor = FP()
-        sys.stderr.write("70%|\n")
-        sys.stderr.flush()
-        write_checkpoint("✅ [2/3] XONG InsightFace!")
+        sys.stderr.write("65%|\n")
+        write_checkpoint("✅ XONG InsightFace.")
 
-        # 3. PaddleOCR
-        write_checkpoint("⏳ [3/3] Đang nạp PaddleOCR...")
-        model_loading_message = "Đang nạp mô hình đọc số BIB PaddleOCR (3/3)..."
+        # Nạp PaddleOCR (Model nặng nhất, hay gây log rác nhất)
+        write_checkpoint("⏳ [3/3] Đang nạp PaddleOCR (Số BIB)...")
         from app.core.ocr_processor import OCRProcessor as OP
         OCRProcessor = OP()
         sys.stderr.write("100%|\n")
-        sys.stderr.flush()
-        write_checkpoint("✅ [3/3] XONG PaddleOCR!")
+        write_checkpoint("✅ XONG PaddleOCR.")
 
         model_status = "ready"
         model_loading_message = "Khởi tạo AI Models thành công!"
-        print("[Backend] Khởi tạo AI Models thành công!", flush=True)
-        write_checkpoint("🎉 HOÀN TẤT TOÀN BỘ AI MODELS!")
+        write_checkpoint("🎉 TẤT CẢ MÔ HÌNH ĐÃ SẴN SÀNG!")
         
     except Exception as e:
-        print(f"[Backend] Lỗi khởi tạo models: {e}", flush=True)
+        error_msg = f"❌ LỖI CHÍ MẠNG: {str(e)}"
+        write_checkpoint(error_msg)
         model_status = "error"
-        model_loading_message = f"Lỗi khởi tạo AI: {str(e)}"
-        write_checkpoint(f"❌ LỖI KHỞI TẠO: {str(e)}")
+        model_loading_message = error_msg
 
 @app.on_event("startup")
 def startup_event():
