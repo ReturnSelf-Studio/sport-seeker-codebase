@@ -2,6 +2,7 @@ import shutil
 import subprocess
 import platform
 import os
+import sys
 from pathlib import Path
 from cli_config import ROOT_DIR
 from collect_models import collect_models_into
@@ -20,7 +21,7 @@ def build_windows():
         print("\n[0] Cập nhật Build Number...")
         run_cmd(f"{sys.executable} scripts/increment_build.py")
         run_cmd(f"{sys.executable} scripts/generate_env_dart.py")
-        
+
         print("\n[1] Tối ưu pubspec.yaml...")
         shutil.copy(PUBSPEC_FILE, PUBSPEC_BAK)
         lines = PUBSPEC_FILE.read_text(encoding="utf-8").splitlines(keepends=True)
