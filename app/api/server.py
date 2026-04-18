@@ -21,7 +21,14 @@ from app.core.config import settings
 from app.core.project_manager import ProjectManager
 from app.core.vector_store import VectorStore
 
+# BỔ SUNG: Tăng giới hạn đệ quy an toàn
+sys.setrecursionlimit(50000)
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+
+# BỔ SUNG: Import sẵn thư viện ở luồng chính để không dính Import Lock
+from sentence_transformers import SentenceTransformer as ST
+from app.core.face_processor import FaceProcessor as FP
+from app.core.ocr_processor import OCRProcessor as OP
 
 FaceProcessor = None
 OCRProcessor = None
@@ -77,23 +84,17 @@ def background_model_loader():
     try:
         write_checkpoint("▶ BẮT ĐẦU KHỞI TẠO HỆ THỐNG AI")
         
-        # Nạp Text Embedding (Model nhẹ, làm nhanh để user thấy tiến trình chạy ngay)
         write_checkpoint("⏳ [1/3] Đang nạp Text Embedding...")
-        from sentence_transformers import SentenceTransformer as ST
         SentenceTransformer = ST(settings.TEXT_EMBEDDING_MODEL)
         sys.stderr.write("30%|\n")
         write_checkpoint("✅ XONG Text Embedding.")
 
-        # Nạp InsightFace
         write_checkpoint("⏳ [2/3] Đang nạp InsightFace (Khuôn mặt)...")
-        from app.core.face_processor import FaceProcessor as FP
         FaceProcessor = FP()
         sys.stderr.write("65%|\n")
         write_checkpoint("✅ XONG InsightFace.")
 
-        # Nạp PaddleOCR (Model nặng nhất, hay gây log rác nhất)
         write_checkpoint("⏳ [3/3] Đang nạp PaddleOCR (Số BIB)...")
-        from app.core.ocr_processor import OCRProcessor as OP
         OCRProcessor = OP()
         sys.stderr.write("100%|\n")
         write_checkpoint("✅ XONG PaddleOCR.")
@@ -110,6 +111,11 @@ def background_model_loader():
 
 @app.on_event("startup")
 def startup_event():
+    # BỔ SUNG: Tăng bộ nhớ Stack cho Thread trên Windows (64MB) để chống tràn bộ nhớ đệm
+    try:
+        threading.stack_size(67108864)
+    except Exception:
+        pass
     threading.Thread(target=background_model_loader, daemon=True).start()
 
 @app.get("/models/status")
