@@ -8,6 +8,9 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+# Tăng giới hạn đệ quy để tránh crash PaddleOCR/PaddlePaddle
+sys.setrecursionlimit(5000)
+
 # Cấu hình nạp DLL cho Windows khi đóng gói
 if sys.platform == 'win32' and getattr(sys, 'frozen', False):
     base_path = sys._MEIPASS
