@@ -5,6 +5,7 @@ import os
 import sys
 import threading
 import time
+from datetime import datetime
 import queue
 import uuid
 from pathlib import Path
@@ -42,8 +43,9 @@ app.add_middleware(
 pm = ProjectManager()
 
 def write_checkpoint(msg):
+    cp_file = None
     try:
-        # Sử dụng đường dẫn tuyệt đối chính xác
+        # Xác định đường dẫn file
         if sys.platform == 'win32':
             log_dir = Path(os.environ.get('APPDATA', '')) / "SportSeeker" / "logs"
         else:
@@ -52,11 +54,23 @@ def write_checkpoint(msg):
         log_dir.mkdir(parents=True, exist_ok=True)
         cp_file = log_dir / "checkpoints.log"
         
+        # Ghi log thành công
         with open(cp_file, "a", encoding="utf-8") as f:
             f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
-            f.flush() # Ép ghi vào đĩa ngay lập tức
-    except:
-        pass
+            f.flush()
+
+    except Exception as e:
+        # 1. Cố gắng ghi raw error vào chính file checkpoints.log
+        if cp_file is not None:
+            try:
+                with open(cp_file, "a", encoding="utf-8") as f:
+                    f.write(f"CHECKPOINT_ERROR: {str(e)}\n")
+                    f.flush()
+            except:
+                pass # Bỏ qua nếu lỗi thuộc về I/O không thể ghi file
+        
+        # 2. Đẩy ra console để StreamToLogger bắt và ném vào backend.log
+        print(f"Lỗi khi ghi checkpoint: {str(e)}", flush=True)
 
 def background_model_loader():
     global FaceProcessor, OCRProcessor, SentenceTransformer, model_status, model_loading_message
