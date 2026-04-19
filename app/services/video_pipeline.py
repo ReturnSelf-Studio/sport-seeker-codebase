@@ -1,4 +1,5 @@
 import os
+import time
 import asyncio
 import threading
 import queue
@@ -151,17 +152,13 @@ async def run_processing(config: ProcessConfig):
         img_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
         vid_exts = {".mp4", ".avi", ".mov", ".mkv"}
         
-        # ==========================================
-        # FIX: Chủ động bỏ qua thư mục .thumbnails để tránh loop lặp vô hạn
-        # Bằng cách check ".thumbnails" not in f.parts
-        # ==========================================
         images = sorted(f for f in src.rglob("*") if f.suffix.lower() in img_exts and ".thumbnails" not in f.parts)
         videos = sorted(f for f in src.rglob("*") if f.suffix.lower() in vid_exts and ".thumbnails" not in f.parts)
 
         all_files = [(str(p), "image") for p in images] + [(str(p), "video") for p in videos]
         total = len(all_files)
 
-        await emit_log(f"Đã tìm thấy: {len(images)} Ảnh, {len(videos)} Video (đã bỏ qua thumbnails cache)")
+        await emit_log(f"Đã tìm thấy: {len(images)} Ảnh, {len(videos)} Video")
         if total == 0:
             await emit_log("Thư mục trống.")
             await emit_stage("done")
@@ -207,12 +204,17 @@ async def run_processing(config: ProcessConfig):
                 result_queue = queue.Queue()
                 stop_event = threading.Event()
                 
+                # Quản lý số liệu tiến độ Video
+                video_stats = {"total": 0, "processed": 0, "fps": 30}
+                
                 def read_worker():
                     cap = cv2.VideoCapture(fpath)
                     if not cap.isOpened():
                         frame_queue.put(None)
                         return
-                    fps = cap.get(cv2.CAP_PROP_FPS) or 30
+                    video_stats["fps"] = cap.get(cv2.CAP_PROP_FPS) or 30
+                    video_stats["total"] = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    
                     frame_count = 0
                     prev_gray = None
                     
@@ -232,7 +234,7 @@ async def run_processing(config: ProcessConfig):
                         except:
                             pass
                             
-                        frame_queue.put((frame, frame_count, frame_count / fps))
+                        frame_queue.put((frame, frame_count, frame_count / video_stats["fps"]))
                         
                     cap.release()
                     frame_queue.put(None)
@@ -265,6 +267,9 @@ async def run_processing(config: ProcessConfig):
                             break
                             
                         frame, fcount, ts = item
+                        # Cập nhật số frame hiện tại đang xử lý
+                        video_stats["processed"] = fcount
+                        
                         if fcount < next_process_frame: continue
                         
                         next_process_frame = fcount + process_interval
@@ -297,11 +302,29 @@ async def run_processing(config: ProcessConfig):
                 
                 t_read.start(); t_detect.start(); t_save.start()
 
+                last_log_time = time.time()
                 while t_read.is_alive() or t_detect.is_alive() or t_save.is_alive():
                     if ai_engine.processing_stop_flag: stop_event.set()
+                    
+                    # Logic phát log % tiến độ Video về UI mỗi 2 giây
+                    now = time.time()
+                    if now - last_log_time >= 2.0:
+                        cf = video_stats["processed"]
+                        tf = video_stats["total"]
+                        if tf > 0 and cf > 0:
+                            pct = min((cf / tf) * 100, 100.0)
+                            await emit_log(f"   ▶ Tiến độ Video: {cf}/{tf} frames ({pct:.1f}%)")
+                        last_log_time = now
+                        
                     await asyncio.sleep(0.1)
                     
                 t_read.join(); t_detect.join(); t_save.join()
+                
+                # Báo hoàn tất video khi các Thread chạy xong
+                tf = video_stats["total"]
+                if tf > 0 and not ai_engine.processing_stop_flag:
+                    await emit_log(f"   ✅ Hoàn tất Video: {tf}/{tf} frames (100.0%)")
+                    
                 vs.save()
 
             await emit_progress(idx + 1, total)
