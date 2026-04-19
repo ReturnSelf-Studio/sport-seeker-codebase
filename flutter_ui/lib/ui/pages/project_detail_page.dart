@@ -1,13 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../theme.dart';
 import 'workspace_page.dart';
 import 'search_page.dart';
 
-class ProjectDetailPage extends StatelessWidget {
+class ProjectDetailPage extends StatefulWidget {
   final Map<String, dynamic> project;
   final VoidCallback onBack;
 
   const ProjectDetailPage({super.key, required this.project, required this.onBack});
+
+  @override
+  State<ProjectDetailPage> createState() => _ProjectDetailPageState();
+}
+
+class _ProjectDetailPageState extends State<ProjectDetailPage> {
+  late Map<String, dynamic> project;
+
+  @override
+  void initState() {
+    super.initState();
+    project = Map.from(widget.project);
+  }
+
+  Future<void> _changeSourceDir() async {
+    String? path = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Chọn thư mục giải chạy (Ảnh/Video)');
+    if (path != null) {
+      try {
+        final res = await http.put(
+          Uri.parse('http://127.0.0.1:10330/projects/${project['id']}'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'source_dir': path}),
+        );
+        if (res.statusCode == 200) {
+          setState(() {
+            project['source_dir'] = path;
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Đã cập nhật thư mục lưu trữ thành công!'), backgroundColor: AppTheme.success)
+            );
+          }
+        } else {
+          throw Exception('Lỗi cập nhật backend');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppTheme.error)
+          );
+        }
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,19 +69,51 @@ class ProjectDetailPage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 24, 32, 0),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
                   tooltip: 'Quay lại',
-                  onPressed: onBack,
+                  onPressed: widget.onBack,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'DỰ ÁN: ${project['name'].toString().toUpperCase()}',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'monospace', color: AppTheme.textPrimary),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'GIẢI CHẠY: ${project['name'].toString().toUpperCase()}',
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'monospace', color: AppTheme.textPrimary),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.folder_open, size: 16, color: AppTheme.textSecondary),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              project['source_dir'] ?? 'Chưa cấu hình thư mục đầu vào',
+                              style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary, fontFamily: 'monospace'),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: _changeSourceDir,
+                            icon: const Icon(Icons.edit, size: 14),
+                            label: const Text('Đổi thư mục', style: TextStyle(fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 16),
                 Container(
                   height: 40,
                   decoration: BoxDecoration(
