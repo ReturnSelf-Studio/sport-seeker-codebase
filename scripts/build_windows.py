@@ -79,6 +79,15 @@ def build_windows():
 
         print("\n[6] Chuẩn bị đóng gói...")
         shutil.copy(ROOT_DIR / "scripts/install_sport_seeker.bat", dist_dir / "install_sport_seeker.bat")
+        
+        # --- THÊM LOGIC NHÚNG clean.bat ---
+        clean_bat_src = ROOT_DIR / "scripts/clean.bat"
+        if clean_bat_src.exists():
+            shutil.copy(clean_bat_src, dist_dir / "clean.bat")
+            print("  -> Đã nhúng clean.bat vào bản Release.")
+        else:
+            print("  [CẢNH BÁO] Không tìm thấy scripts/clean.bat để nhúng!")
+            
         pdf_guide = ROOT_DIR / "docs/installation_guide_windows.pdf"
         if pdf_guide.exists():
             shutil.copy(pdf_guide, dist_dir / "installation_guide_windows.pdf")

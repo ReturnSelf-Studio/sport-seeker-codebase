@@ -15,6 +15,7 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   int _searchType = 0; // 0: BIB, 1: Face
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController _bibCtrl = TextEditingController();
   String? _faceImagePath;
   double _threshold = 0.4;
@@ -41,22 +42,22 @@ class _SearchPageState extends State<SearchPage> {
   void _openFile(String path) async {
     if (Platform.isMacOS) {
       try {
-        await Process.run(
-          'open',
-          [path],
-          runInShell: true,
-        );
+        await Process.run('open', [path], runInShell: true);
       } catch (e) {
         _showError("Lỗi mở file: $e");
       }
     } else if (Platform.isWindows) {
-      Process.run('explorer $path', [], runInShell: true);
+      Process.run('explorer', [path], runInShell: true);
     } else if (Platform.isLinux) {
-      Process.run('xdg-open $path', [], runInShell: true);
+      Process.run('xdg-open', [path], runInShell: true);
     }
   }
 
   Future<void> _doSearch() async {
+    if (_searchType == 0 && !_formKey.currentState!.validate()) {
+      return;
+    }
+
     setState(() {
       _isSearching = true;
       _results.clear();
@@ -68,9 +69,8 @@ class _SearchPageState extends State<SearchPage> {
       request.fields['k'] = '50';
 
       if (_searchType == 0) {
-        if (_bibCtrl.text.isEmpty) throw Exception("Vui lòng nhập BIB");
         request.fields['type'] = 'bib';
-        request.fields['text'] = _bibCtrl.text;
+        request.fields['text'] = _bibCtrl.text.trim();
       } else {
         if (_faceImagePath == null) throw Exception("Vui lòng chọn ảnh mẫu");
         request.fields['type'] = 'face';
@@ -107,7 +107,10 @@ class _SearchPageState extends State<SearchPage> {
                   fontFamily: 'monospace',
                   color: AppTheme.textPrimary)),
           const Divider(color: AppTheme.border, height: 32),
-          _buildSearchBox(),
+          Form(
+            key: _formKey,
+            child: _buildSearchBox(),
+          ),
           const SizedBox(height: 16),
           Expanded(child: _buildResultsGrid()),
         ],
@@ -140,23 +143,35 @@ class _SearchPageState extends State<SearchPage> {
           ),
           const SizedBox(height: 16),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: _searchType == 0
-                    ? TextField(
+                    ? TextFormField(
                         controller: _bibCtrl,
                         decoration: const InputDecoration(
                             labelText: 'Nhập số BIB',
                             filled: true,
                             fillColor: AppTheme.bgElevated,
-                            border: OutlineInputBorder()))
+                            border: OutlineInputBorder(),
+                            isDense: true),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'BIB không được để trống';
+                          }
+                          final trimmed = value.trim();
+                          if (trimmed.length < 1 || trimmed.length > 10) {
+                            return 'BIB phải từ 1 đến 10 ký tự';
+                          }
+                          return null;
+                        },
+                      )
                     : Row(
                         children: [
                           ElevatedButton(
                               onPressed: _pickImage,
                               style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.bgElevated),
+                                  backgroundColor: AppTheme.bgElevated, padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16)),
                               child: const Text('Chọn ảnh mẫu')),
                           const SizedBox(width: 8),
                           Expanded(
@@ -226,11 +241,13 @@ class _SearchPageState extends State<SearchPage> {
                       child: thumbnailPath != null
                           ? Image.file(File(thumbnailPath),
                               fit: BoxFit.cover,
+                              cacheWidth: 300, // Đã fix lỗi tràn RAM
                               errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
                           : isVideo
                               ? const Icon(Icons.videocam, size: 50, color: AppTheme.textMuted)
                               : Image.file(File(sourcePath),
                                   fit: BoxFit.cover,
+                                  cacheWidth: 300, // Đã fix lỗi tràn RAM
                                   errorBuilder: (c, e, s) => const Icon(Icons.broken_image)),
                     ),
                     Container(
@@ -239,7 +256,7 @@ class _SearchPageState extends State<SearchPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(sourcePath.split('/').last,
+                          Text(sourcePath.split(Platform.pathSeparator).last,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(

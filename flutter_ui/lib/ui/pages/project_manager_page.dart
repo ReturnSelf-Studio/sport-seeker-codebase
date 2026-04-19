@@ -16,6 +16,7 @@ class _ProjectManagerPageState extends State<ProjectManagerPage> {
   List<dynamic> _projects = [];
   bool _isLoading = true;
 
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _sourceCtrl = TextEditingController();
 
@@ -73,12 +74,17 @@ class _ProjectManagerPageState extends State<ProjectManagerPage> {
   }
 
   Future<void> _createProject() async {
-    if (_nameCtrl.text.isEmpty || _sourceCtrl.text.isEmpty) return;
+    if (!_formKey.currentState!.validate()) return;
+    if (_sourceCtrl.text.isEmpty) {
+      _showError("Vui lòng chọn thư mục Nguồn");
+      return;
+    }
+
     try {
       final res = await http.post(
         Uri.parse('http://127.0.0.1:10330/projects'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'name': _nameCtrl.text, 'source_dir': _sourceCtrl.text}),
+        body: jsonEncode({'name': _nameCtrl.text.trim(), 'source_dir': _sourceCtrl.text}),
       );
       if (res.statusCode == 200) {
         _nameCtrl.clear();
@@ -120,7 +126,10 @@ class _ProjectManagerPageState extends State<ProjectManagerPage> {
         children: [
           const Text('QUẢN LÝ DỰ ÁN', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, fontFamily: 'monospace', color: AppTheme.textPrimary)),
           const Divider(color: AppTheme.border, height: 32),
-          _buildCreateForm(),
+          Form(
+            key: _formKey,
+            child: _buildCreateForm(),
+          ),
           const SizedBox(height: 24),
           const Text('DANH SÁCH DỰ ÁN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, fontFamily: 'monospace', letterSpacing: 1.5, color: AppTheme.textMuted)),
           const SizedBox(height: 8),
@@ -135,7 +144,7 @@ class _ProjectManagerPageState extends State<ProjectManagerPage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: AppTheme.bgSurface, border: Border.all(color: AppTheme.border), borderRadius: BorderRadius.circular(6)),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start, // Changed to start to handle error text height
         children: [
           Expanded(
             child: Column(
@@ -143,10 +152,23 @@ class _ProjectManagerPageState extends State<ProjectManagerPage> {
               children: [
                 const Text('Tên Dự án *', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
                 const SizedBox(height: 4),
-                TextField(
+                TextFormField(
                   controller: _nameCtrl,
                   style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
-                  decoration: const InputDecoration(filled: true, fillColor: AppTheme.bgElevated, border: OutlineInputBorder(), isDense: true),
+                  decoration: const InputDecoration(filled: true, fillColor: AppTheme.bgElevated, border: OutlineInputBorder(), isDense: true, hintText: '2-50 ký tự, không khoảng trắng', hintStyle: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Tên dự án không được để trống';
+                    }
+                    final trimmed = value.trim();
+                    if (trimmed.length < 2 || trimmed.length > 50) {
+                      return 'Tên dự án phải từ 2 đến 50 ký tự';
+                    }
+                    if (trimmed.contains(' ')) {
+                      return 'Không chứa khoảng trắng (Dùng _ hoặc -)';
+                    }
+                    return null;
+                  },
                 ),
               ],
             ),
@@ -159,9 +181,10 @@ class _ProjectManagerPageState extends State<ProjectManagerPage> {
                 const Text('Thư mục Nguồn *', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
                 const SizedBox(height: 4),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: TextFormField(
                         controller: _sourceCtrl,
                         readOnly: true,
                         style: const TextStyle(color: AppTheme.textPrimary, fontSize: 13),
@@ -170,7 +193,7 @@ class _ProjectManagerPageState extends State<ProjectManagerPage> {
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.bgActive),
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.bgActive, padding: const EdgeInsets.symmetric(vertical: 16)),
                       onPressed: () async {
                         try {
                           String? path = await FilePicker.platform.getDirectoryPath(
@@ -191,10 +214,13 @@ class _ProjectManagerPageState extends State<ProjectManagerPage> {
             ),
           ),
           const SizedBox(width: 16),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.textPrimary, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)),
-            onPressed: _createProject,
-            child: const Text('+ Tạo Mới', style: TextStyle(color: AppTheme.bgBase, fontWeight: FontWeight.bold)),
+          Padding(
+            padding: const EdgeInsets.only(top: 19),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.textPrimary, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)),
+              onPressed: _createProject,
+              child: const Text('+ Tạo Mới', style: TextStyle(color: AppTheme.bgBase, fontWeight: FontWeight.bold)),
+            ),
           ),
         ],
       ),

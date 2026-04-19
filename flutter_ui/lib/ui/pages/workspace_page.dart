@@ -73,19 +73,28 @@ class _WorkspacePageState extends State<WorkspacePage> {
   }
 
   Future<void> _toggleProcess() async {
-    try {
-      if (_isProcessing) {
-        final res =
-            await http.post(Uri.parse('http://127.0.0.1:10330/process/stop'));
-        if (res.statusCode != 200)
-          throw Exception("Server trả về mã lỗi: ${res.statusCode}");
-      } else {
-        setState(() {
-          _logs.clear();
-          _progress = 0.0;
-          _isProcessing = true;
-          _status = "ĐANG KHỞI TẠO...";
-        });
+    if (_isProcessing) {
+      // 1. NGAY LẬP TỨC ngắt Loading UI để tránh bị treo chờ Backend
+      setState(() {
+        _isProcessing = false;
+        _status = "ĐÃ GỬI LỆNH DỪNG";
+      });
+      
+      // 2. Gọi API báo cho Python Backend biết để hủy vòng lặp ngầm
+      try {
+        await http.post(Uri.parse('http://127.0.0.1:10330/api/process/stop'));
+      } catch (e) {
+        print('Lỗi kết nối khi gửi lệnh dừng: $e');
+      }
+    } else {
+      // Logic Bắt đầu tiến trình bình thường
+      setState(() {
+        _logs.clear();
+        _progress = 0.0;
+        _isProcessing = true;
+        _status = "ĐANG KHỞI TẠO...";
+      });
+      try {
         final res = await http.post(
           Uri.parse('http://127.0.0.1:10330/process/start'),
           headers: {'Content-Type': 'application/json'},
@@ -100,13 +109,13 @@ class _WorkspacePageState extends State<WorkspacePage> {
         if (res.statusCode != 200) {
           throw Exception("Server trả về lỗi: ${res.body}");
         }
+      } catch (e) {
+        setState(() {
+          _isProcessing = false;
+          _status = "LỖI KẾT NỐI API";
+        });
+        _showError("Lỗi xử lý: $e");
       }
-    } catch (e) {
-      setState(() {
-        _isProcessing = false;
-        _status = "LỖI KẾT NỐI API";
-      });
-      _showError("Lỗi xử lý: $e");
     }
   }
 
