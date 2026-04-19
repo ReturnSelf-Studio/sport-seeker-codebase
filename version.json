@@ -1,0 +1,7 @@
+{
+  "app_version": "1.0.5",
+  "build_number": 2,
+  "backend_version": "1.0.1",
+  "model_version": "1.0.1",
+  "release_notes": "Phiên bản có hệ thống Auto-Versioning."
+}

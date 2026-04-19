@@ -1,5 +1,5 @@
 {
-  "version": "1.0.2",
+  "version": "1.0.0",
   "base_url": "https://raw.githubusercontent.com/ReturnSelf-Studio/sport-seeker-codebase/main/release_data/macos/",
   "chunks": [
     "payload.part000",
