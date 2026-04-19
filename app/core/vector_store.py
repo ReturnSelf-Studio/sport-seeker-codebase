@@ -3,9 +3,40 @@ import numpy as np
 import json
 import pandas as pd
 import os
+import sys
+import tempfile
+import shutil
 from glob import glob
 from typing import List, Dict, Tuple
 from app.core.config import settings
+
+def safe_faiss_write(index, path):
+    if sys.platform == 'win32':
+        try:
+            faiss.write_index(index, path)
+        except Exception:
+            # Fallback ghi ra thư mục temp (ASCII) rồi move vào đường dẫn Unicode
+            fd, tmp_path = tempfile.mkstemp(suffix=".faiss")
+            os.close(fd)
+            faiss.write_index(index, tmp_path)
+            shutil.move(tmp_path, path)
+    else:
+        faiss.write_index(index, path)
+
+def safe_faiss_read(path):
+    if sys.platform == 'win32':
+        try:
+            return faiss.read_index(path)
+        except Exception:
+            # Fallback copy ra thư mục temp để đọc
+            fd, tmp_path = tempfile.mkstemp(suffix=".faiss")
+            os.close(fd)
+            shutil.copy(path, tmp_path)
+            idx = faiss.read_index(tmp_path)
+            os.remove(tmp_path)
+            return idx
+    else:
+        return faiss.read_index(path)
 
 class VectorStore:
     def __init__(self, load_existing: bool = True):
@@ -36,12 +67,11 @@ class VectorStore:
         return self.bib_indices[0][1]
 
     def add_vectors(self, vectors: np.ndarray, metadata_entries: List[Dict]):
-        """
-        Add vectors to the PRIMARY (first) index.
-        """
         if vectors.shape[0] != len(metadata_entries):
             raise ValueError("Number of vectors and metadata entries must match.")
 
+        # Bắt buộc ép kiểu float32 để tránh crash ngầm FAISS
+        vectors = np.array(vectors, dtype=np.float32)
         faiss.normalize_L2(vectors)
         self.index.add(vectors)
         self.metadata.extend(metadata_entries)
@@ -50,14 +80,13 @@ class VectorStore:
         if vectors.shape[0] != len(metadata_entries):
             raise ValueError("Number of vectors and metadata entries must match.")
 
+        # Bắt buộc ép kiểu float32 để tránh crash ngầm FAISS
+        vectors = np.array(vectors, dtype=np.float32)
         faiss.normalize_L2(vectors)
         self.bib_index.add(vectors)
         self.bib_metadata.extend(metadata_entries)
 
     def search(self, vector: np.ndarray, k: int = 5) -> List[Dict]:
-        """
-        Search Face Index across ALL shards.
-        """
         faiss.normalize_L2(vector)
         all_results = []
 
@@ -75,9 +104,6 @@ class VectorStore:
         return all_results[:k]
 
     def search_bib(self, vector: np.ndarray, k: int = 5) -> List[Dict]:
-        """
-        Search Bib Index across ALL shards.
-        """
         faiss.normalize_L2(vector)
         all_results = []
 
@@ -97,7 +123,7 @@ class VectorStore:
     def save(self):
         os.makedirs(os.path.dirname(settings.INDEX_PATH), exist_ok=True)
 
-        faiss.write_index(self.index, settings.INDEX_PATH)
+        safe_faiss_write(self.index, settings.INDEX_PATH)
 
         if self.metadata:
             df = pd.DataFrame(self.metadata)
@@ -106,7 +132,7 @@ class VectorStore:
              pass
 
         if self.bib_indices:
-             faiss.write_index(self.bib_index, settings.BIB_INDEX_PATH)
+             safe_faiss_write(self.bib_index, settings.BIB_INDEX_PATH)
              if self.bib_metadata:
                 df = pd.DataFrame(self.bib_metadata)
                 df.to_parquet(settings.BIB_METADATA_PATH, index=False)
@@ -144,11 +170,10 @@ class VectorStore:
 
         try:
             if os.path.exists(idx_path):
-                idx = faiss.read_index(idx_path)
+                idx = safe_faiss_read(idx_path)
                 meta = []
                 if os.path.exists(meta_path):
                     try:
-
                         df = pd.read_parquet(meta_path)
                         meta = json.loads(df.to_json(orient='records'))
                     except Exception as e:
@@ -164,7 +189,7 @@ class VectorStore:
 
         try:
             if os.path.exists(bib_idx_path):
-                bib_idx = faiss.read_index(bib_idx_path)
+                bib_idx = safe_faiss_read(bib_idx_path)
                 bib_meta = []
                 if os.path.exists(bib_meta_path):
                     try:

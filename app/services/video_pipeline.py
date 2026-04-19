@@ -82,7 +82,7 @@ def _process_video_batch(batch_frames, batch_frame_counts, batch_timestamps, tra
                     thumb_path = None
                     
                 vectors = np.array([t["best_face"]["embedding"] for t in finished])
-                metadata = [{"source_path": fpath, "image_type": "video", "timestamp": t["start_timestamp"], "end_timestamp": t["end_timestamp"], "frame_idx": t["last_seen_frame_idx"], "bbox": t["best_face"]["bbox"], "det_score": t["best_face"]["det_score"], "type": "face", "track_id": t["id"], "thumbnail_path": thumb_path} for t in finished]
+                metadata = [{"source_path": fpath, "image_type": "video", "timestamp": float(t["start_timestamp"]), "end_timestamp": float(t["end_timestamp"]), "frame_idx": int(t["last_seen_frame_idx"]), "bbox": t["best_face"]["bbox"], "det_score": float(t["best_face"]["det_score"]), "type": "face", "track_id": t["id"], "thumbnail_path": thumb_path} for t in finished]
                 result_queue.put({"type": "face", "vectors": vectors, "metadata": metadata})
 
         if do_bib and OCRProcessor and SentenceTransformer and b_faces:
@@ -95,12 +95,24 @@ def _process_video_batch(batch_frames, batch_frame_counts, batch_timestamps, tra
                 if cx2 <= cx1 or cy2 <= cy1: continue
 
                 crop = b_frame[cy1:cy2, cx1:cx2]
-                scale = 1.0
-                if (cx2-cx1) > 320:
-                    scale = 320/(cx2-cx1)
-                    crop = cv2.resize(crop, (320, int((cy2-cy1)*scale)))
+                
+                # --- FIX BẢN VÁ ONEDNN CRASH ---
+                # Ép kích thước ảnh tối thiểu 320x320 để chống sập mạng Convolution
+                ch, cw = crop.shape[:2]
+                if ch == 0 or cw == 0: continue
+                
+                scale = 320.0 / cw
+                resized_h = int(ch * scale)
+                resized_h = max(1, resized_h) 
+                
+                crop_resized = cv2.resize(crop, (320, resized_h))
+                if resized_h < 320:
+                    pad_b = 320 - resized_h
+                    crop_resized = cv2.copyMakeBorder(crop_resized, 0, pad_b, 0, 0, cv2.BORDER_CONSTANT, value=(0,0,0))
+                # -------------------------------
+                
                 try:
-                    texts = OCRProcessor.get_text(crop)
+                    texts = OCRProcessor.get_text(crop_resized)
                     if texts:
                         bibs = [t for t in texts if any(c.isdigit() for c in t["text"]) and config.bib_min <= len(t["text"].strip()) <= config.bib_max]
                         if bibs:
@@ -112,11 +124,11 @@ def _process_video_batch(batch_frames, batch_frame_counts, batch_timestamps, tra
                             except Exception:
                                 thumb_path = None
                                 
-                            vectors = np.array([SentenceTransformer.encode([t["text"]])[0] for t in bibs])
-                            metadata = [{"source_path": fpath, "image_type": "video", "timestamp": b_ts, "frame_idx": b_fcount, "text": t["text"], "score": t["score"], "type": "bib", "thumbnail_path": thumb_path} for t in bibs]
+                            vectors = np.array([SentenceTransformer.encode([t["text"]])[0] for t in bibs], dtype=np.float32)
+                            metadata = [{"source_path": fpath, "image_type": "video", "timestamp": float(b_ts), "frame_idx": int(b_fcount), "text": t["text"], "score": float(t["score"]), "type": "bib", "thumbnail_path": thumb_path} for t in bibs]
                             result_queue.put({"type": "bib", "vectors": vectors, "metadata": metadata})
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"[CẢNH BÁO] Lỗi trích xuất OCR/BIB: {e}", flush=True)
 
     return process_interval, no_face_streak
 
@@ -184,16 +196,24 @@ async def run_processing(config: ProcessConfig):
                         if faces:
                             vs.add_vectors(
                                 np.array([f["embedding"] for f in faces]),
-                                [{"source_path": fpath, "image_type": "image", "bbox": f["bbox"], "det_score": f["det_score"], "type": "face"} for f in faces]
+                                [{"source_path": fpath, "image_type": "image", "bbox": f["bbox"], "det_score": float(f["det_score"]), "type": "face"} for f in faces]
                             )
                     if do_bib and ai_engine.OCRProcessor and ai_engine.SentenceTransformer:
-                        texts = ai_engine.OCRProcessor.get_text(img)
+                        # --- FIX BẢN VÁ ONEDNN CRASH ---
+                        ocr_img = img.copy()
+                        ih, iw = ocr_img.shape[:2]
+                        if iw > 0 and ih > 0:
+                            if iw < 320 or ih < 320:
+                                scale = max(320.0 / iw, 320.0 / ih)
+                                ocr_img = cv2.resize(ocr_img, (int(iw * scale), int(ih * scale)))
+                        # -------------------------------
+                        texts = ai_engine.OCRProcessor.get_text(ocr_img)
                         if texts:
                             bibs = [t for t in texts if any(c.isdigit() for c in t["text"]) and config.bib_min <= len(t["text"].strip()) <= config.bib_max]
                             if bibs:
                                 vs.add_bib_vectors(
-                                    np.array([ai_engine.SentenceTransformer.encode([t["text"]])[0] for t in bibs]),
-                                    [{"source_path": fpath, "image_type": "image", "timestamp": 0, "frame_idx": 0, "text": t["text"], "score": t["score"], "type": "bib"} for t in bibs]
+                                    np.array([ai_engine.SentenceTransformer.encode([t["text"]])[0] for t in bibs], dtype=np.float32),
+                                    [{"source_path": fpath, "image_type": "image", "timestamp": 0.0, "frame_idx": 0, "text": t["text"], "score": float(t["score"]), "type": "bib"} for t in bibs]
                                 )
                 vs.save()
             else:
@@ -261,7 +281,7 @@ async def run_processing(config: ProcessConfig):
                                 remaining = tracker.finalize()
                                 if remaining:
                                     vectors = np.array([t["best_face"]["embedding"] for t in remaining])
-                                    metadata = [{"source_path": fpath, "image_type": "video", "timestamp": t["start_timestamp"], "end_timestamp": t["end_timestamp"], "frame_idx": t["last_seen_frame_idx"], "bbox": t["best_face"]["bbox"], "det_score": t["best_face"]["det_score"], "type": "face", "track_id": t["id"], "thumbnail_path": None} for t in remaining]
+                                    metadata = [{"source_path": fpath, "image_type": "video", "timestamp": float(t["start_timestamp"]), "end_timestamp": float(t["end_timestamp"]), "frame_idx": int(t["last_seen_frame_idx"]), "bbox": t["best_face"]["bbox"], "det_score": float(t["best_face"]["det_score"]), "type": "face", "track_id": t["id"], "thumbnail_path": None} for t in remaining]
                                     result_queue.put({"type": "face", "vectors": vectors, "metadata": metadata})
                             result_queue.put(None)
                             break
@@ -288,13 +308,18 @@ async def run_processing(config: ProcessConfig):
 
                 def save_worker():
                     while not stop_event.is_set() and not ai_engine.processing_stop_flag:
-                        item = result_queue.get()
-                        if item is None: break
-                        
-                        if item["type"] == "face":
-                            vs.add_vectors(item["vectors"], item["metadata"])
-                        elif item["type"] == "bib":
-                            vs.add_bib_vectors(item["vectors"], item["metadata"])
+                        try:
+                            item = result_queue.get(timeout=1)
+                            if item is None: break
+                            
+                            if item["type"] == "face":
+                                vs.add_vectors(item["vectors"], item["metadata"])
+                            elif item["type"] == "bib":
+                                vs.add_bib_vectors(item["vectors"], item["metadata"])
+                        except queue.Empty:
+                            pass
+                        except Exception as e:
+                            print(f"[CẢNH BÁO] Lỗi Thread lưu Vector: {e}", flush=True)
 
                 t_read = threading.Thread(target=read_worker)
                 t_detect = threading.Thread(target=detect_worker)

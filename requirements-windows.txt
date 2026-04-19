@@ -8,16 +8,17 @@ opencv-python>=4.8
 pyarrow>=17.0.0
 pandas>=2.0.3
 
-# Face recognition — ONNX với DirectML (GPU acceleration)
+# Face recognition — ONNX với DirectML (GPU acceleration, auto-fallback CPU)
 insightface>=0.7.3
-onnxruntime-directml>=1.16  # DirectML provider cho Windows GPU
+onnxruntime-directml>=1.16
 
 # FAISS
 faiss-cpu>=1.7.4
 
-# OCR — PaddleOCR (download models on first run, KHÔNG bundle)
-paddlepaddle>=2.6.0
-paddleocr>=2.7.3,<3.0.0
+# OCR — RapidOCR reuse onnxruntime-directml, auto GPU/CPU detect
+# PaddleOCR models bundle fused_conv2d OneDNN ops từ Linux/Mac build env
+# → không tương thích Windows OneDNN context khi lazy-compile static graph
+rapidocr-onnxruntime>=1.4.0
 
 # Text embeddings
 sentence-transformers>=2.2.2
@@ -28,7 +29,7 @@ uvicorn>=0.23.0
 websockets>=11.0.3
 python-multipart>=0.0.6
 
-# System Utils (Cho Zombie Killer trên Windows)
+# System Utils
 psutil>=5.9.0
 
 # Build utils

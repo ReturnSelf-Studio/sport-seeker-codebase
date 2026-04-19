@@ -3,6 +3,14 @@ main.py — Sport Seeker Backend Entry Point.
 """
 import os
 import sys
+
+# PHẢI ĐẶT TRƯỚC MỌI IMPORT — Paddle runtime đọc flags lúc load DLL.
+# Nếu set sau khi InsightFace/ONNX đã init, OneDNN đã bị lock → fused_conv2d crash.
+if sys.platform == 'win32':
+    os.environ["FLAGS_use_mkldnn"] = "0"
+    os.environ["FLAGS_use_new_executor"] = "0"
+    os.environ["PADDLE_DISABLE_ONEDNN"] = "1"
+
 import multiprocessing
 import logging
 from logging.handlers import RotatingFileHandler
