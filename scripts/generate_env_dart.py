@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE = ROOT_DIR / ".env"
 VERSION_FILE = ROOT_DIR / "version.json"
-DART_OUT = ROOT_DIR / "flutter_ui/lib/core/env.dart"
+DART_OUT = ROOT_DIR / "frontend/lib/core/env.dart"
 
 def main():
     env_data = {}

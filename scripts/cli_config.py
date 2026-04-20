@@ -10,8 +10,8 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE = ROOT_DIR / ".env"
-FLUTTER_UI_DIR = ROOT_DIR / "flutter_ui"
-BACKEND_ASSET_DIR = FLUTTER_UI_DIR / "assets" / "backend"
+FRONTEND_DIR = ROOT_DIR / "frontend"
+BACKEND_ASSET_DIR = FRONTEND_DIR / "assets" / "backend"
 RELEASE_DATA_DIR = ROOT_DIR / "release_data"
 RELEASE_MODELS_DIR = ROOT_DIR / "release_models"
 VERSION_FILE = ROOT_DIR / "version.json"

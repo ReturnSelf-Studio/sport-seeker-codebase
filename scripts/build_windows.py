@@ -8,9 +8,9 @@ from cli_config import ROOT_DIR
 from collect_models import collect_models_into
 from core_utils import run_cmd
 
-FLUTTER_UI_DIR = ROOT_DIR / "flutter_ui"
-PUBSPEC_FILE = FLUTTER_UI_DIR / "pubspec.yaml"
-PUBSPEC_BAK = FLUTTER_UI_DIR / "pubspec.yaml.bak"
+FRONTEND_DIR = ROOT_DIR / "frontend"
+PUBSPEC_FILE = FRONTEND_DIR / "pubspec.yaml"
+PUBSPEC_BAK = FRONTEND_DIR / "pubspec.yaml.bak"
 
 def build_windows():
     print("\n===================================================")
@@ -32,9 +32,9 @@ def build_windows():
         )
 
         print("\n[2] Biên dịch Flutter...")
-        run_cmd("flutter clean", cwd=FLUTTER_UI_DIR)
-        run_cmd("flutter pub get", cwd=FLUTTER_UI_DIR)
-        run_cmd("flutter build windows", cwd=FLUTTER_UI_DIR)
+        run_cmd("flutter clean", cwd=FRONTEND_DIR)
+        run_cmd("flutter pub get", cwd=FRONTEND_DIR)
+        run_cmd("flutter build windows", cwd=FRONTEND_DIR)
 
         dist_dir = ROOT_DIR / "SportSeeker_Windows_Release"
         if dist_dir.exists():
@@ -51,7 +51,7 @@ def build_windows():
 
         print("\n[3] Sao chép giao diện và mã nguồn Backend...")
         # 3.1. Copy Frontend (Flutter UI)
-        flutter_release = FLUTTER_UI_DIR / "build/windows/x64/runner/Release"
+        flutter_release = FRONTEND_DIR / "build/windows/x64/runner/Release"
         shutil.copytree(flutter_release, resource_dir, dirs_exist_ok=True)
 
         # 3.2. Copy Backend (Python Code)

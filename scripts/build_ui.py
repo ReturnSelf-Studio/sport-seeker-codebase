@@ -7,7 +7,7 @@ from pathlib import Path
 from core_utils import run_cmd
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-FLUTTER_UI_DIR = ROOT_DIR / "flutter_ui"
+FRONTEND_DIR = ROOT_DIR / "frontend"
 
 def build_ui_macos():
     if platform.system() != "Darwin":
@@ -23,15 +23,15 @@ def build_ui_macos():
     run_cmd(f"{sys.executable} scripts/increment_build.py")
     run_cmd(f"{sys.executable} scripts/generate_env_dart.py")
     
-    run_cmd("flutter clean", cwd=FLUTTER_UI_DIR)
-    run_cmd("flutter pub get", cwd=FLUTTER_UI_DIR)
+    run_cmd("flutter clean", cwd=FRONTEND_DIR)
+    run_cmd("flutter pub get", cwd=FRONTEND_DIR)
 
     release_dir = ROOT_DIR / "SportSeeker_macOS_Release"
     shutil.rmtree(release_dir, ignore_errors=True)
     os.makedirs(release_dir, exist_ok=True)
 
-    run_cmd("flutter build macos", cwd=FLUTTER_UI_DIR)
-    shutil.copytree(FLUTTER_UI_DIR / "build/macos/Build/Products/Release/Sport Seeker.app", release_dir / "Sport Seeker.app", dirs_exist_ok=True)
+    run_cmd("flutter build macos", cwd=FRONTEND_DIR)
+    shutil.copytree(FRONTEND_DIR / "build/macos/Build/Products/Release/Sport Seeker.app", release_dir / "Sport Seeker.app", dirs_exist_ok=True)
 
     cmd_script = ROOT_DIR / "scripts/install_sport_seeker.command"
     if cmd_script.exists():
