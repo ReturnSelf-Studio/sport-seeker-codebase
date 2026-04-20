@@ -69,4 +69,4 @@ App `sport_seeker` đã có trong `/Applications` và tìm được qua Spotligh
 
 ---
 
-*Sport Seeker v1.0.0-beta · Tài liệu nội bộ – không phân phối bên ngoài*
+*Sport Seeker v1.0.0 · Tài liệu nội bộ – không phân phối bên ngoài*

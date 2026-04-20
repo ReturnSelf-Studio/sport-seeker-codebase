@@ -42,3 +42,5 @@ release_data/
 __init__.py
 uv.lock
 
+.devtools
+.dev

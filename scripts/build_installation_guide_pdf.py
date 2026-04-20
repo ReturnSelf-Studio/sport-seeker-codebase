@@ -70,7 +70,6 @@ def load_fonts(assets_dir: Path) -> bool:
     if all(p.exists() for p in candidates.values()):
         for name, path in candidates.items():
             pdfmetrics.registerFont(TTFont(name, str(path)))
-        from reportlab.pdfbase.fontfinder import FontFinder
         FONT_NORMAL  = "BeVietnamPro-Regular"
         FONT_BOLD    = "BeVietnamPro-Bold"
         FONT_ITALIC  = "BeVietnamPro-Italic"
