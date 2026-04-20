@@ -34,9 +34,9 @@ build/
 build/web/
 
 # macOS/Linux/Windows-specific
-macos/
 linux/
-windows/
+android/
+ios/
 
 # Các file cấu hình của IDE (VS Code, Android Studio, Xcode)
 .vscode/
