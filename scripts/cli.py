@@ -15,6 +15,9 @@ def generate_env_dart():
 def collect_models():
     run_cmd(f"{sys.executable} scripts/collect_models.py")
 
+def build_pdf():
+    run_cmd(f"{sys.executable} scripts/build_installation_guide_pdf.py -i docs/ -o dist/pdf/ -a assets/")
+
 def build_ui():
     """Luồng build UI thuần túy cho macOS"""
     run_cmd(f"{sys.executable} scripts/build_ui.py")
@@ -39,7 +42,7 @@ def main():
     parser = argparse.ArgumentParser(description="Sport Seeker CLI Tool")
     parser.add_argument("command", choices=[
         "env", "build-backend", "chunk", "collect-models", "chunk-models",
-        "build-ui", "build", "kill", "clean", "pre-commit"
+        "build-ui", "build", "kill", "clean", "pre-commit", "build-pdf"
     ], help="Lệnh cần thực thi")
 
     args = parser.parse_args()
@@ -73,6 +76,8 @@ def main():
         clean_all()
     elif args.command == "pre-commit":
         pre_commit()
+    elif args.command == "build-pdf":
+        build_pdf()
 
 if __name__ == "__main__":
     main()
