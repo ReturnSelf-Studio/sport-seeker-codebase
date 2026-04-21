@@ -28,6 +28,7 @@ data/
 frontend/node_modules/
 frontend/dist/
 frontend/.env.local
+frontend/
 
 models
 
@@ -38,7 +39,6 @@ SportSeeker_macOS.zip
 
 # hide codebase
 scripts/
-flutter_ui/
 app/
 dotenv
 main.py
@@ -46,3 +46,5 @@ pyproject.toml
 requirements*
 SportSeekerAPI.spec
 uv.lock
+docs
+assets

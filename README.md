@@ -62,7 +62,7 @@ source .venv/bin/activate    # Hoặc .venv\Scripts\activate.bat trên Windows
 uv pip install -r requirements-macos-arm64.txt # Hoặc requirements-windows.txt
 python main.py
 ```
-* **Chạy Flutter UI:** Mở thư mục `flutter_ui`, gõ lệnh `flutter run` (chọn nền tảng macOS hoặc Windows).
+* **Chạy Flutter UI:** Mở thư mục `frontend`, gõ lệnh `flutter run` (chọn nền tảng macOS hoặc Windows).
 
 ---
 
