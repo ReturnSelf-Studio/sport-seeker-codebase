@@ -11,8 +11,9 @@ def build_backend():
     print(f"   🚀 BUILD BACKEND BINARY ({OS_NAME})")
     print("===================================================")
 
-    req_file = "requirements-windows.txt" if OS_NAME == "Windows" else "requirements-macos-arm64.txt"
-    run_cmd(f"uv pip install -r {req_file}")
+    # Cai platform deps + dev tools cung luc
+    platform_req = "requirements-windows.txt" if OS_NAME == "Windows" else "requirements-macos-arm64.txt"
+    run_cmd(f"uv pip install -r {platform_req} -r requirements-dev.txt")
 
     os.makedirs(BACKEND_ASSET_DIR, exist_ok=True)
 

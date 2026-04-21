@@ -1,0 +1,8 @@
+[pip]
+only-binary = [
+    "numpy",
+    "opencv-python",
+    "pyarrow",
+    "faiss-cpu",
+    "rapidocr-onnxruntime",
+]

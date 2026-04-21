@@ -34,7 +34,6 @@ models
 .env
 SportSeeker_Windows.zip
 SportSeeker_macOS.zip
-.devtools/*
 SportSeekerAPI.spec
 pubspec.lock
 .flutter-plugins-dependencies

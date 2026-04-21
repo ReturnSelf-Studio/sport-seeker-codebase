@@ -56,9 +56,10 @@ def collect_models_into(dest: Path):
     print("\n[1/3] InsightFace (buffalo_l)...")
     copy_first_found(candidates["insightface"], dest / "models" / "buffalo_l", "InsightFace")
 
-    print("\n[2/3] PaddleOCR...")
-    paddle_pairs = [(src, dest / (dst_name or "paddleocr")) for src, dst_name in candidates["paddle"]]
-    copy_all_found(paddle_pairs, "PaddleOCR")
+    print("\n[2/3] PaddleOCR / PaddleX...")
+    # dst_name=None -> dest/paddleocr, dst_name="paddlex" -> dest/paddlex, dst_name="paddle" -> dest/paddle
+    paddle_pairs = [(src, dest / (dst_name if dst_name else "paddleocr")) for src, dst_name in candidates["paddle"]]
+    copy_all_found(paddle_pairs, "PaddleOCR/PaddleX")
 
     print("\n[3/3] HuggingFace (all-MiniLM-L6-v2)...")
     copy_first_found(

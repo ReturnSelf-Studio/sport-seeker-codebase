@@ -1,36 +1,65 @@
 # requirements-windows.txt
-# Windows (x86_64) — NVIDIA GPU optional
+# Windows (x86_64) — Python 3.11 — NVIDIA GPU optional
 # Install: uv pip install -r requirements-windows.txt
 
-# Core
+# ============================================================
+# PRE-INSTALL: Insightface
+# Khong co wheel chinh thuc tren PyPI cho Windows → dung prebuilt
+# tu Gourieff/Assets (tin cay, duoc dung rong rai boi cong dong ComfyUI)
+# Khai bao TRUOC de pip/uv resolve dung dependency
+# ============================================================
+insightface @ https://github.com/Gourieff/Assets/raw/main/Insightface/insightface-0.7.3-cp311-cp311-win_amd64.whl
+
+# ============================================================
+# CHI DUNG PRE-BUILT WHEEL — khong compile from source
+# Tranh loi "Microsoft Visual C++ required" tren may khach
+# ============================================================
+--only-binary numpy
+--only-binary opencv-python
+--only-binary pyarrow
+--only-binary faiss-cpu
+--only-binary rapidocr-onnxruntime
+
+# ============================================================
+# CORE
+# ============================================================
 numpy>=1.24,<2.0.0
 opencv-python>=4.8
 pyarrow>=17.0.0
 pandas>=2.0.3
 
-# Face recognition — ONNX với DirectML (GPU acceleration, auto-fallback CPU)
-insightface>=0.7.3
+# ============================================================
+# FACE RECOGNITION
+# onnxruntime-directml: GPU acceleration (DirectML), auto-fallback CPU
+# ============================================================
 onnxruntime-directml>=1.16
 
-# FAISS
+# ============================================================
+# FAISS — vector search
+# ============================================================
 faiss-cpu>=1.7.4
 
-# OCR — RapidOCR reuse onnxruntime-directml, auto GPU/CPU detect
-# PaddleOCR models bundle fused_conv2d OneDNN ops từ Linux/Mac build env
-# → không tương thích Windows OneDNN context khi lazy-compile static graph
+# ============================================================
+# OCR
+# rapidocr-onnxruntime reuse onnxruntime-directml, auto GPU/CPU detect
+# Thay the paddleocr de tranh loi OneDNN incompatibility tren Windows
+# ============================================================
 rapidocr-onnxruntime>=1.4.0
 
-# Text embeddings
+# ============================================================
+# TEXT EMBEDDINGS
+# ============================================================
 sentence-transformers>=2.2.2
 
-# Backend API
+# ============================================================
+# BACKEND API
+# ============================================================
 fastapi>=0.100.0
 uvicorn>=0.23.0
 websockets>=11.0.3
 python-multipart>=0.0.6
 
-# System Utils
+# ============================================================
+# SYSTEM UTILS
+# ============================================================
 psutil>=5.9.0
-
-# Build utils
-pyinstaller>=6.3

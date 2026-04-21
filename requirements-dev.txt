@@ -1,7 +1,18 @@
-# Dev tools — cài thêm sau requirements platform
-# Install: uv pip install -r requirements-dev.txt
+# requirements-dev.txt
+# Chi danh cho may dev — KHONG ship len may khach
+# KHONG include platform requirements (windows/macos) o day
+# de tranh conflict khi dev chay tren he dieu hanh khac
+# Install: uv pip install -r <platform>.txt -r requirements-dev.txt
 
-ruff>=0.4          # linter + formatter
+# ============================================================
+# BUILD
+# ============================================================
+pyinstaller>=6.3
+
+# ============================================================
+# DEV TOOLS
+# ============================================================
+ruff>=0.4           # linter + formatter
 pytest>=8.0
-httpx>=0.24.0      # Test FastAPI
+httpx>=0.24.0       # Test FastAPI
 reportlab==4.4.10
