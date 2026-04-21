@@ -27,7 +27,6 @@ class ProcessConfig(BaseModel):
 # HÀM HỖ TRỢ ĐỌC/GHI ẢNH UNICODE CHO WINDOWS
 # ==========================================
 def imwrite_unicode(path, img):
-    """Ghi ảnh an toàn với đường dẫn tiếng Việt trên Windows"""
     try:
         is_success, im_buf_arr = cv2.imencode(".jpg", img)
         if is_success:
@@ -38,7 +37,6 @@ def imwrite_unicode(path, img):
         return False
 
 def imread_unicode(path):
-    """Đọc ảnh an toàn với đường dẫn tiếng Việt trên Windows"""
     try:
         img_arr = np.fromfile(path, np.uint8)
         return cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
@@ -95,9 +93,6 @@ def _process_video_batch(batch_frames, batch_frame_counts, batch_timestamps, tra
                 if cx2 <= cx1 or cy2 <= cy1: continue
 
                 crop = b_frame[cy1:cy2, cx1:cx2]
-                
-                # --- FIX BẢN VÁ ONEDNN CRASH ---
-                # Ép kích thước ảnh tối thiểu 320x320 để chống sập mạng Convolution
                 ch, cw = crop.shape[:2]
                 if ch == 0 or cw == 0: continue
                 
@@ -109,7 +104,6 @@ def _process_video_batch(batch_frames, batch_frame_counts, batch_timestamps, tra
                 if resized_h < 320:
                     pad_b = 320 - resized_h
                     crop_resized = cv2.copyMakeBorder(crop_resized, 0, pad_b, 0, 0, cv2.BORDER_CONSTANT, value=(0,0,0))
-                # -------------------------------
                 
                 try:
                     texts = OCRProcessor.get_text(crop_resized)
@@ -134,6 +128,7 @@ def _process_video_batch(batch_frames, batch_frame_counts, batch_timestamps, tra
 
 async def run_processing(config: ProcessConfig):
     ai_engine.processing_stop_flag = False
+    ai_engine.processing_pause_flag = False
 
     if ai_engine.model_status == "loading":
         await emit_log("⏳ AI Models đang được tải. Vui lòng chờ thông báo trên Banner góc trên màn hình.")
@@ -181,12 +176,19 @@ async def run_processing(config: ProcessConfig):
         BATCH_SIZE = 4
 
         for idx, (fpath, ftype) in enumerate(all_files):
+            # Xử lý cờ Pause cho Ảnh tĩnh
+            while ai_engine.processing_pause_flag and not ai_engine.processing_stop_flag:
+                await asyncio.sleep(0.5)
+
             if ai_engine.processing_stop_flag:
                 await emit_log("🛑 Đã dừng theo yêu cầu.")
                 break
 
             fname = os.path.basename(fpath)
             await emit_log(f"Đang xử lý: {fname}")
+
+            # Đảm bảo lấy config mới nhất
+            current_conf = ai_engine.current_config or config
 
             if ftype == "image":
                 img = imread_unicode(fpath)
@@ -199,17 +201,15 @@ async def run_processing(config: ProcessConfig):
                                 [{"source_path": fpath, "image_type": "image", "bbox": f["bbox"], "det_score": float(f["det_score"]), "type": "face"} for f in faces]
                             )
                     if do_bib and ai_engine.OCRProcessor and ai_engine.SentenceTransformer:
-                        # --- FIX BẢN VÁ ONEDNN CRASH ---
                         ocr_img = img.copy()
                         ih, iw = ocr_img.shape[:2]
                         if iw > 0 and ih > 0:
                             if iw < 320 or ih < 320:
                                 scale = max(320.0 / iw, 320.0 / ih)
                                 ocr_img = cv2.resize(ocr_img, (int(iw * scale), int(ih * scale)))
-                        # -------------------------------
                         texts = ai_engine.OCRProcessor.get_text(ocr_img)
                         if texts:
-                            bibs = [t for t in texts if any(c.isdigit() for c in t["text"]) and config.bib_min <= len(t["text"].strip()) <= config.bib_max]
+                            bibs = [t for t in texts if any(c.isdigit() for c in t["text"]) and current_conf.bib_min <= len(t["text"].strip()) <= current_conf.bib_max]
                             if bibs:
                                 vs.add_bib_vectors(
                                     np.array([ai_engine.SentenceTransformer.encode([t["text"]])[0] for t in bibs], dtype=np.float32),
@@ -223,8 +223,6 @@ async def run_processing(config: ProcessConfig):
                 frame_queue = queue.Queue(maxsize=30)
                 result_queue = queue.Queue()
                 stop_event = threading.Event()
-                
-                # Quản lý số liệu tiến độ Video
                 video_stats = {"total": 0, "processed": 0, "fps": 30}
                 
                 def read_worker():
@@ -239,6 +237,9 @@ async def run_processing(config: ProcessConfig):
                     prev_gray = None
                     
                     while not stop_event.is_set() and not ai_engine.processing_stop_flag:
+                        while ai_engine.processing_pause_flag and not stop_event.is_set() and not ai_engine.processing_stop_flag:
+                            time.sleep(0.5)
+
                         ret, frame = cap.read()
                         if not ret: break
                         frame_count += 1
@@ -254,7 +255,12 @@ async def run_processing(config: ProcessConfig):
                         except:
                             pass
                             
-                        frame_queue.put((frame, frame_count, frame_count / video_stats["fps"]))
+                        # Thêm timeout khi queue full để tránh kẹt
+                        try:
+                            frame_queue.put((frame, frame_count, frame_count / video_stats["fps"]), timeout=1)
+                        except queue.Full:
+                            frame_count -= 1 # Lùi lại để đọc lại
+                            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_count)
                         
                     cap.release()
                     frame_queue.put(None)
@@ -263,17 +269,28 @@ async def run_processing(config: ProcessConfig):
                     from app.core.tracker import FaceTracker
                     tracker = FaceTracker() if do_face else None
                     batch_frames, batch_frame_counts, batch_timestamps = [], [], []
-                    process_interval = config.frame_interval
+                    
+                    dyn_conf = ai_engine.current_config or config
+                    process_interval = dyn_conf.frame_interval
                     no_face_streak = 0
                     next_process_frame = 0
                     
                     while not stop_event.is_set() and not ai_engine.processing_stop_flag:
-                        item = frame_queue.get()
+                        while ai_engine.processing_pause_flag and not stop_event.is_set() and not ai_engine.processing_stop_flag:
+                            time.sleep(0.5)
+
+                        # FIX KẸT THREAD KHI STOP: sử dụng timeout
+                        try:
+                            item = frame_queue.get(timeout=1)
+                        except queue.Empty:
+                            continue
+
                         if item is None:
                             if len(batch_frames) > 0:
+                                dyn_conf = ai_engine.current_config or config
                                 process_interval, no_face_streak = _process_video_batch(
                                     batch_frames, batch_frame_counts, batch_timestamps,
-                                    tracker, result_queue, config, fpath, do_face, do_bib,
+                                    tracker, result_queue, dyn_conf, fpath, do_face, do_bib,
                                     ai_engine.FaceProcessor, ai_engine.OCRProcessor, ai_engine.SentenceTransformer,
                                     process_interval, no_face_streak, thumb_dir
                                 )
@@ -287,7 +304,6 @@ async def run_processing(config: ProcessConfig):
                             break
                             
                         frame, fcount, ts = item
-                        # Cập nhật số frame hiện tại đang xử lý
                         video_stats["processed"] = fcount
                         
                         if fcount < next_process_frame: continue
@@ -298,9 +314,10 @@ async def run_processing(config: ProcessConfig):
                         batch_timestamps.append(ts)
                         
                         if len(batch_frames) >= BATCH_SIZE:
+                            dyn_conf = ai_engine.current_config or config
                             process_interval, no_face_streak = _process_video_batch(
                                 batch_frames, batch_frame_counts, batch_timestamps,
-                                tracker, result_queue, config, fpath, do_face, do_bib,
+                                tracker, result_queue, dyn_conf, fpath, do_face, do_bib,
                                 ai_engine.FaceProcessor, ai_engine.OCRProcessor, ai_engine.SentenceTransformer,
                                 process_interval, no_face_streak, thumb_dir
                             )
@@ -308,6 +325,9 @@ async def run_processing(config: ProcessConfig):
 
                 def save_worker():
                     while not stop_event.is_set() and not ai_engine.processing_stop_flag:
+                        while ai_engine.processing_pause_flag and not stop_event.is_set() and not ai_engine.processing_stop_flag:
+                            time.sleep(0.5)
+
                         try:
                             item = result_queue.get(timeout=1)
                             if item is None: break
@@ -331,9 +351,8 @@ async def run_processing(config: ProcessConfig):
                 while t_read.is_alive() or t_detect.is_alive() or t_save.is_alive():
                     if ai_engine.processing_stop_flag: stop_event.set()
                     
-                    # Logic phát log % tiến độ Video về UI mỗi 2 giây
                     now = time.time()
-                    if now - last_log_time >= 2.0:
+                    if now - last_log_time >= 2.0 and not ai_engine.processing_pause_flag:
                         cf = video_stats["processed"]
                         tf = video_stats["total"]
                         if tf > 0 and cf > 0:
@@ -345,7 +364,6 @@ async def run_processing(config: ProcessConfig):
                     
                 t_read.join(); t_detect.join(); t_save.join()
                 
-                # Báo hoàn tất video khi các Thread chạy xong
                 tf = video_stats["total"]
                 if tf > 0 and not ai_engine.processing_stop_flag:
                     await emit_log(f"   ✅ Hoàn tất Video: {tf}/{tf} frames (100.0%)")

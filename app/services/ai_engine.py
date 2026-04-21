@@ -20,7 +20,11 @@ class AIEngine:
         self.SentenceTransformer = None
         self.model_status = "loading"
         self.model_loading_message = "Đang chuẩn bị khởi tạo..."
+        
+        # Thêm cờ quản lý luồng
         self.processing_stop_flag = False
+        self.processing_pause_flag = False
+        self.current_config = None
         self.current_task = None
 
     def write_checkpoint(self, msg):

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
@@ -22,7 +21,6 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isLoading = false;
 
   String _modelsSize = "Đang tính...";
-  String _ocrCacheSize = "Đang tính...";
   String _hfCacheSize = "Đang tính...";
   String _customModelPath = "";
 
@@ -75,27 +73,9 @@ class _SettingsPageState extends State<SettingsPage> {
     final modelsSize = await _getDirSize(_currentModelsRoot);
     final hfSize = await _getDirSize('$_homePath/.cache/huggingface/hub');
     
-    String ocrSizeStr = "Đang tính...";
-    try {
-      final res = await http.get(Uri.parse('http://127.0.0.1:10330/system/storage')).timeout(const Duration(seconds: 2));
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        ocrSizeStr = "${data['paddleocr_mb']} MB (Xác thực qua Backend)";
-      } else {
-        throw Exception();
-      }
-    } catch (_) {
-      final sep = Platform.pathSeparator;
-      final paddleSize1 = await _getDirSize('$_homePath$sep.paddlex');
-      final paddleSize2 = await _getDirSize('$_homePath$sep.paddleocr');
-      final paddleSize3 = await _getDirSize('$_homePath$sep.paddle');
-      ocrSizeStr = "$paddleSize1 (+ $paddleSize2) (+ $paddleSize3)";
-    }
-
     if (mounted) {
       setState(() {
         _modelsSize = modelsSize;
-        _ocrCacheSize = ocrSizeStr;
         _hfCacheSize = hfSize;
       });
     }
@@ -453,27 +433,6 @@ class _SettingsPageState extends State<SettingsPage> {
                           onPressed: () => _deleteDirectory(
                               'Toàn bộ Models Offline', [_currentModelsRoot]),
                           child: const Text('Dọn Dẹp',
-                              style: TextStyle(color: AppTheme.error)),
-                        ),
-                      ),
-                      const Divider(color: AppTheme.border),
-                      ListTile(
-                        leading:
-                            const Icon(Icons.text_fields, color: AppTheme.info),
-                        title: const Text('PaddleOCR Cache',
-                            style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.bold)),
-                        subtitle: Text('Dung lượng: $_ocrCacheSize',
-                            style: const TextStyle(
-                                color: AppTheme.textSecondary, fontSize: 12)),
-                        trailing: OutlinedButton(
-                          onPressed: () => _deleteDirectory('PaddleOCR Cache', [
-                            '$_homePath/.paddlex',
-                            '$_homePath/.paddleocr',
-                            '$_homePath/.paddle'
-                          ]),
-                          child: const Text('Xoá Cache OCR',
                               style: TextStyle(color: AppTheme.error)),
                         ),
                       ),

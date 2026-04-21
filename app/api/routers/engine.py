@@ -17,13 +17,31 @@ async def start_process(config: ProcessConfig):
     if not ai_engine.processing_stop_flag and ai_engine.current_task and not ai_engine.current_task.done():
         raise HTTPException(status_code=400, detail="Đang có tiến trình xử lý chạy.")
 
+    ai_engine.current_config = config
     ai_engine.current_task = asyncio.create_task(run_processing(config))
     return {"status": "started"}
 
 @router.post("/process/stop")
 async def stop_process():
     ai_engine.processing_stop_flag = True
+    ai_engine.processing_pause_flag = False # Đảm bảo thoát khỏi loop pause
     return {"status": "stopping"}
+
+# API MỚI CHO TICKET 23
+@router.post("/process/pause")
+async def pause_process():
+    ai_engine.processing_pause_flag = True
+    return {"status": "paused"}
+
+@router.post("/process/resume")
+async def resume_process():
+    ai_engine.processing_pause_flag = False
+    return {"status": "resumed"}
+
+@router.post("/process/update_config")
+async def update_process_config(config: ProcessConfig):
+    ai_engine.current_config = config
+    return {"status": "config_updated"}
 
 @router.post("/search")
 async def search(
@@ -52,8 +70,9 @@ async def search(
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
         faces = ai_engine.FaceProcessor.get_embedding(img)
+        # FIX TICKET 22: Trả về rỗng thay vì Exception khi ảnh không có mặt
         if not faces:
-            raise HTTPException(status_code=400, detail="Không phát hiện khuôn mặt trong ảnh mẫu")
+            return {"results": []}
 
         target_face = max(faces, key=lambda x: x['det_score'])
         embedding = np.array([target_face['embedding']], dtype=np.float32)

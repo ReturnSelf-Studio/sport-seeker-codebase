@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../theme.dart';
 import 'workspace_page.dart';
 import 'search_page.dart';
@@ -23,37 +20,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   void initState() {
     super.initState();
     project = Map.from(widget.project);
-  }
-
-  Future<void> _changeSourceDir() async {
-    String? path = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Chọn thư mục giải chạy (Ảnh/Video)');
-    if (path != null) {
-      try {
-        final res = await http.put(
-          Uri.parse('http://127.0.0.1:10330/projects/${project['id']}'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'source_dir': path}),
-        );
-        if (res.statusCode == 200) {
-          setState(() {
-            project['source_dir'] = path;
-          });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Đã cập nhật thư mục lưu trữ thành công!'), backgroundColor: AppTheme.success)
-            );
-          }
-        } else {
-          throw Exception('Lỗi cập nhật backend');
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppTheme.error)
-          );
-        }
-      }
-    }
   }
 
   @override
@@ -96,17 +62,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                               style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary, fontFamily: 'monospace'),
                               overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            onPressed: _changeSourceDir,
-                            icon: const Icon(Icons.edit, size: 14),
-                            label: const Text('Đổi thư mục', style: TextStyle(fontSize: 12)),
                           ),
                         ],
                       ),
