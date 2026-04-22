@@ -19,26 +19,48 @@ MODELS_DIR   = USERPROFILE / "SportSeeker" / "models"
 
 
 # ----------------------------------------------------------------
-# [2/5] Copy resource → AppData
+# [2/6] Dọn dẹp phiên bản cũ (Giữ lại User Data)
+# ----------------------------------------------------------------
+def clean_old_installation():
+    print("\n[2/6] Đang dọn dẹp phiên bản cũ (giữ lại dữ liệu người dùng)...")
+    if not APP_DIR.exists():
+        return
+
+    # MẢNG QUAN TRỌNG: Khai báo tên các thư mục/file chứa dữ liệu người dùng cần giữ lại.
+    KEEP_LIST = ["user_data", "database", "config.json", "db.sqlite3"]
+
+    for item in APP_DIR.iterdir():
+        if item.name in KEEP_LIST:
+            print(f"  -> Giữ lại dữ liệu: {item.name}")
+            continue
+        try:
+            if item.is_dir():
+                shutil.rmtree(item, ignore_errors=True)
+            else:
+                item.unlink(missing_ok=True)
+        except Exception as e:
+            pass
+
+
+# ----------------------------------------------------------------
+# [3/6] Copy resource → AppData
 # ----------------------------------------------------------------
 def copy_resources():
-    print("\n[2/5] Đang sao chép ứng dụng vào AppData...")
-    if APP_DIR.exists():
-        print("-> Đang xóa phiên bản cũ (nếu có)...")
-        shutil.rmtree(APP_DIR, ignore_errors=True)
-
+    print("\n[3/6] Đang sao chép ứng dụng vào AppData...")
+    
     print(f"-> Copy từ : {RESOURCE_DIR}")
     print(f"-> Đích    : {APP_DIR}")
     # Exclude models_bundle (deploy riêng ở bước tiếp theo)
-    shutil.copytree(RESOURCE_DIR, APP_DIR, ignore=shutil.ignore_patterns("models_bundle"))
+    # dirs_exist_ok=True để copy đè lên mà không vướng các folder vừa giữ lại
+    shutil.copytree(RESOURCE_DIR, APP_DIR, dirs_exist_ok=True, ignore=shutil.ignore_patterns("models_bundle"))
     print("-> Đã sao chép ứng dụng thành công.")
 
 
 # ----------------------------------------------------------------
-# [3/5] Deploy AI models từ bundle
+# [4/6] Deploy AI models từ bundle
 # ----------------------------------------------------------------
 def setup_models():
-    print("\n[3/5] Đang kiểm tra và cài đặt kho dữ liệu AI Models...")
+    print("\n[4/6] Đang kiểm tra và cài đặt kho dữ liệu AI Models...")
     bundle_dir = RESOURCE_DIR / "models_bundle"
     if not bundle_dir.exists():
         print("-> Không có models đính kèm. Ứng dụng sẽ tự tải qua OTA khi mở.")
@@ -70,7 +92,7 @@ def setup_models():
 
 
 # ----------------------------------------------------------------
-# [4/5] Setup Python venv + pip install
+# [5/6] Setup Python venv + pip install
 # ----------------------------------------------------------------
 def _find_uv(backend_dir: Path) -> str:
     """
@@ -117,7 +139,7 @@ def _run_pip_install(uv_cmd: str, backend_dir: Path, env_vars: dict) -> int:
 
 
 def setup_python_env():
-    print("\n[4/5] Đang thiết lập môi trường AI Backend...")
+    print("\n[5/6] Đang thiết lập môi trường AI Backend...")
     backend_dir = APP_DIR / "backend"
     uv_cmd = _find_uv(backend_dir)
 
@@ -158,10 +180,10 @@ def setup_python_env():
 
 
 # ----------------------------------------------------------------
-# [5/5] Tạo shortcut
+# [6/6] Tạo shortcut
 # ----------------------------------------------------------------
 def create_shortcuts():
-    print("\n[5/5] Đang tạo lối tắt truy cập...")
+    print("\n[6/6] Đang tạo lối tắt truy cập...")
     desktop    = USERPROFILE / "Desktop" / "Sport Seeker.lnk"
     start_menu = (
         Path(os.environ.get("APPDATA", ""))
@@ -197,10 +219,11 @@ if __name__ == "__main__":
     print("===================================================")
 
     try:
-        print("\n[1/5] Đang kiểm tra trạng thái hệ thống...")
+        print("\n[1/6] Đang kiểm tra trạng thái hệ thống...")
         kill_sport_seeker_processes("Windows", quiet=True)
         time.sleep(2)
 
+        clean_old_installation()
         copy_resources()
         setup_models()
         setup_python_env()

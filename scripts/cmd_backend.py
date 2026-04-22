@@ -42,6 +42,7 @@ def build_backend():
         "--hidden-import paddleocr --hidden-import sentence_transformers --hidden-import cv2 "
         "--hidden-import numpy --hidden-import pyarrow --hidden-import multipart "
         "--collect-data Cython --collect-all paddleocr --copy-metadata paddleocr "
+        "--copy-metadata imageio "
         "--collect-data insightface --collect-all faiss --collect-binaries faiss "
         f"{extra_params} "
         f"--distpath {BACKEND_ASSET_DIR} --workpath build --noconfirm main.py"

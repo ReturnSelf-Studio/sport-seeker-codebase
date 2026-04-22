@@ -110,6 +110,12 @@ def build_windows():
         collect_models_into(models_bundle_dir)
 
         # --------------------------------------------------------
+        # [5.5] Build PDF Hướng dẫn cài đặt
+        # --------------------------------------------------------
+        print("\n[5.5] Tự động tạo file PDF Hướng dẫn cài đặt...")
+        run_cmd(f"{sys.executable} scripts/build_installation_guide_pdf.py -i docs/ -o docs/ -a assets/")
+
+        # --------------------------------------------------------
         # [6] Root-level files cho .bat
         # --------------------------------------------------------
         print("\n[6] Chuẩn bị đóng gói...")
