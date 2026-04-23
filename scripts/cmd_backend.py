@@ -51,15 +51,20 @@ def build_backend():
     run_cmd(pyinstaller_cmd)
 
     api_dir = BACKEND_ASSET_DIR / "SportSeekerAPI"
+    
+    # FIX SYMLINK: Dùng tar.gz cho macOS, zip cho Windows
+    archive_format = 'zip' if OS_NAME == "Windows" else 'gztar'
+    ext = '.zip' if OS_NAME == "Windows" else '.tar.gz'
     zip_path = BACKEND_ASSET_DIR / "api_payload"
-    if os.path.exists(f"{zip_path}.zip"):
-        os.remove(f"{zip_path}.zip")
+    
+    if os.path.exists(f"{zip_path}{ext}"):
+        os.remove(f"{zip_path}{ext}")
 
-    print(f"📦 Đang nén thư mục {api_dir}...")
-    shutil.make_archive(str(zip_path), 'zip', str(api_dir))
+    print(f"📦 Đang nén thư mục {api_dir} thành {archive_format}...")
+    shutil.make_archive(str(zip_path), archive_format, str(api_dir))
 
     shutil.rmtree(api_dir, ignore_errors=True)
-    print(f"✅ XONG! Binary đã được nén tại: {zip_path}.zip")
+    print(f"✅ XONG! Binary đã được nén tại: {zip_path}{ext}")
 
 def kill_backend():
     kill_sport_seeker_processes()

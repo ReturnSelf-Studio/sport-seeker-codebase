@@ -39,8 +39,9 @@ def build_windows():
         print("\n[1] Tối ưu pubspec.yaml...")
         shutil.copy(PUBSPEC_FILE, PUBSPEC_BAK)
         lines = PUBSPEC_FILE.read_text(encoding="utf-8").splitlines(keepends=True)
+        # Sửa thành api_payload. để cover cả .zip và .tar.gz
         PUBSPEC_FILE.write_text(
-            "".join(l for l in lines if "assets/backend/api_payload.zip" not in l),
+            "".join(l for l in lines if "assets/backend/api_payload." not in l),
             encoding="utf-8",
         )
 
@@ -80,8 +81,6 @@ def build_windows():
         shutil.copytree(ROOT_DIR / "app", backend_dest / "app")
 
         # 3.3 uv.toml vào backend_dest
-        # → uv pip install chạy với cwd=backend_dest sẽ đọc file này
-        # → apply only-binary constraints, tránh compile from source trên máy khách
         uv_toml_src = ROOT_DIR / "uv.toml"
         if uv_toml_src.exists():
             shutil.copy(uv_toml_src, backend_dest / "uv.toml")
@@ -122,9 +121,6 @@ def build_windows():
 
         shutil.copy(ROOT_DIR / "scripts/install_sport_seeker.bat", dist_dir / "install_sport_seeker.bat")
 
-        # pyproject.toml minimal ở dist_dir root
-        # → uv run trong install_sport_seeker.bat đọc file này để biết python version
-        # → KHÔNG phải pyproject.toml gốc (chứa dev deps không liên quan)
         (dist_dir / "pyproject.toml").write_text(RELEASE_PYPROJECT, encoding="utf-8")
         print("  -> Đã tạo pyproject.toml cho release.")
 

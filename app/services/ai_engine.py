@@ -8,6 +8,18 @@ from datetime import datetime
 from pathlib import Path
 from app.core.config import settings
 
+# =====================================================================
+# 1. BẢO HIỂM MAC OTA: Lừa thư viện imageio để vượt lỗi thiếu metadata
+# =====================================================================
+original_version = importlib.metadata.version
+
+def patched_version(pkg_name):
+    if pkg_name == "imageio":
+        return "2.31.0"
+    return original_version(pkg_name)
+
+importlib.metadata.version = patched_version
+
 # Tăng giới hạn đệ quy an toàn cho hệ thống
 sys.setrecursionlimit(100000)
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"

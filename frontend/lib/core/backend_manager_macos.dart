@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
-import 'package:archive/archive_io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'env.dart';
@@ -66,10 +65,10 @@ class BackendManagerMacOS extends BackendManager {
       }
 
       print("[Update] Đã tải đủ 100% chunk. Bắt đầu ghép file...");
-      final zipFile = File('${stagingDir.path}/api_payload.zip');
-      if (await zipFile.exists()) await zipFile.delete();
+      final tarFile = File('${stagingDir.path}/api_payload.tar.gz');
+      if (await tarFile.exists()) await tarFile.delete();
 
-      final sink = zipFile.openWrite(mode: FileMode.writeOnlyAppend);
+      final sink = tarFile.openWrite(mode: FileMode.writeOnlyAppend);
       for (String chunkName in chunks) {
         final chunkFile = File('${stagingDir.path}/$chunkName');
         await sink.addStream(chunkFile.openRead());
@@ -82,8 +81,13 @@ class BackendManagerMacOS extends BackendManager {
       if (await extractDir.exists()) await extractDir.delete(recursive: true);
       await extractDir.create();
 
-      await extractFileToDisk(zipFile.path, extractDir.path);
-      await zipFile.delete();
+      // Sử dụng tar native để giữ nguyên toàn bộ quyền file và symlinks
+      final extractResult = await Process.run('tar', ['-xzf', tarFile.path, '-C', extractDir.path]);
+      if (extractResult.exitCode != 0) {
+        print("[Update Error] Lỗi giải nén tar: ${extractResult.stderr}");
+        return;
+      }
+      await tarFile.delete();
 
       await Process.run('chmod', ['-R', '+x', extractDir.path]);
 
@@ -147,11 +151,16 @@ class BackendManagerMacOS extends BackendManager {
         await backendDir.create(recursive: true);
 
         try {
-          final ByteData zipBytes = await rootBundle.load('assets/backend/api_payload.zip');
-          final tmpZip = File('${backendDir.path}/temp_payload.zip');
-          await tmpZip.writeAsBytes(zipBytes.buffer.asUint8List());
-          await extractFileToDisk(tmpZip.path, backendDir.path);
-          await tmpZip.delete();
+          final ByteData tarBytes = await rootBundle.load('assets/backend/api_payload.tar.gz');
+          final tmpTar = File('${backendDir.path}/temp_payload.tar.gz');
+          await tmpTar.writeAsBytes(tarBytes.buffer.asUint8List());
+          
+          // Sử dụng lệnh tar hệ thống thay vì package archive
+          final extractResult = await Process.run('tar', ['-xzf', tmpTar.path, '-C', backendDir.path]);
+          if (extractResult.exitCode != 0) {
+            throw Exception("Lỗi tar: ${extractResult.stderr}");
+          }
+          await tmpTar.delete();
 
           await Process.run('chmod', ['-R', '+x', backendDir.path]);
 
