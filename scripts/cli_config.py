@@ -12,7 +12,6 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE = ROOT_DIR / ".env"
 FRONTEND_DIR = ROOT_DIR / "frontend"
 BACKEND_ASSET_DIR = FRONTEND_DIR / "assets" / "backend"
-RELEASE_DATA_DIR = ROOT_DIR / "release_data"
 RELEASE_MODELS_DIR = ROOT_DIR / "release_models"
 VERSION_FILE = ROOT_DIR / "version.json"
 
@@ -42,7 +41,6 @@ def copy_dir(src: Path, dst: Path) -> bool:
         return True
     return False
 
-
 def copy_first_found(candidates: list[Path], dst: Path, label: str) -> bool:
     """Copy path đầu tiên tìm thấy trong candidates vào dst. Dừng sớm."""
     for src in candidates:
@@ -51,7 +49,6 @@ def copy_first_found(candidates: list[Path], dst: Path, label: str) -> bool:
             return True
     print(f"  -> SKIP: Khong tim thay {label}.")
     return False
-
 
 def copy_all_found(candidates: list[tuple[Path, Path]], label: str) -> bool:
     """Copy tất cả các cặp (src, dst) tìm thấy — không dừng sớm."""
@@ -63,7 +60,6 @@ def copy_all_found(candidates: list[tuple[Path, Path]], label: str) -> bool:
     if not found:
         print(f"  -> SKIP: Khong tim thay {label}.")
     return found
-
 
 def check_env():
     print("⏳ [1] Kiểm tra cấu hình môi trường (.env)...")
@@ -83,7 +79,7 @@ def chunk_file(source_zip, out_dir, base_url, json_filename, version="1.0.0"):
         if f != ".model_hash":
             os.remove(os.path.join(out_dir, f))
 
-    chunk_size = 25 * 1024 * 1024 # 25MB
+    chunk_size = 25 * 1024 * 1024  # 25MB
     file_size = os.path.getsize(source_zip)
     total_chunks = math.ceil(file_size / chunk_size)
     chunks_list = []

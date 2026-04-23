@@ -14,9 +14,9 @@ class BackendManagerMacOS extends BackendManager {
   BackendManagerMacOS() : super.internal();
   Process? _backendProcess;
 
-  // Version key dùng app_version + build_number từ env.dart
-  // Mỗi lần `manage.sh build` chạy → build_number tăng → key này thay đổi → force reinstall backend
-  static const String _currentEngineVersion = '${Env.appVersion}+${Env.buildNumber}';
+  // Version key dùng bundledBackendVersion từ env.dart
+  // Tự động bump khi có thay đổi file Python trong app/, main.py, requirements, pyproject.toml, uv.toml
+  static const String _currentEngineVersion = Env.bundledBackendVersion;
 
   @override
   Future<void> startBackend({Function(String)? onProgress}) async {

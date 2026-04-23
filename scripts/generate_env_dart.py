@@ -19,18 +19,14 @@ def main():
                     if len(parts) == 2:
                         env_data[parts[0].strip()] = parts[1].strip().strip('"').strip("'")
 
-    backend_url = env_data.get("BACKEND_UPDATE_URL", "https://raw.githubusercontent.com/YourName/YourRepo/main/release_data/")
     models_url = env_data.get("MODELS_UPDATE_URL", "https://raw.githubusercontent.com/YourName/YourRepo/main/release_models/")
-
-    if not backend_url.endswith("/"): backend_url += "/"
     if not models_url.endswith("/"): models_url += "/"
 
-    # Đọc version.json
     app_ver = "1.0.5"
     build_num = 1
     backend_ver = "1.0.1"
     model_ver = "1.0.1"
-    
+
     if VERSION_FILE.exists():
         try:
             info = json.loads(VERSION_FILE.read_text(encoding="utf-8"))
@@ -51,21 +47,19 @@ class Env {{
   static const String platform = "{os_name}";
   static const String fullVersion = "{app_ver}+{build_num} ({os_name})";
 
-  // Backend
-  static const String backendBaseUrl = "{backend_url}";
-  static const String backendVersionUrl = "{backend_url}version.json";
-  static const String bundledBackendVersion = "{backend_ver}";
-
   // AI Models
   static const String modelsBaseUrl = "{models_url}";
   static const String modelsVersionUrl = "{models_url}models_version.json";
   static const String bundledModelVersion = "{model_ver}";
+
+  // Backend
+  static const String bundledBackendVersion = "{backend_ver}";
 }}
 """
     os.makedirs(os.path.dirname(DART_OUT), exist_ok=True)
     with open(DART_OUT, "w", encoding="utf-8") as f:
         f.write(dart_content)
-    print(f"✅ Đã tạo env.dart | App v{app_ver}+{build_num} ({os_name}) | Backend v{backend_ver} | Model v{model_ver}")
+    print(f"✅ Đã tạo env.dart | App v{app_ver}+{build_num} ({os_name}) | Model v{model_ver}")
 
 if __name__ == "__main__":
     main()

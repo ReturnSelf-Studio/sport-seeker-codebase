@@ -2,10 +2,10 @@ import json
 import os
 import sys
 from cli_config import (
-    VERSION_FILE, ROOT_DIR, RELEASE_MODELS_DIR, RELEASE_DATA_DIR,
+    VERSION_FILE, ROOT_DIR, RELEASE_MODELS_DIR,
     get_file_hash
 )
-from cmd_ota import chunk_backend, chunk_models
+from cmd_ota import chunk_models
 from core_utils import run_cmd
 
 def pre_commit():
@@ -17,17 +17,12 @@ def pre_commit():
     if res.stdout.strip() == "main":
         if not VERSION_FILE.exists():
             print("⚠️ Không tìm thấy release_info.json, sử dụng version mặc định.")
-            backend_ver = "1.0.0"
             model_ver = "1.0.0"
         else:
             info = json.loads(VERSION_FILE.read_text(encoding="utf-8"))
-            backend_ver = info.get("backend_version", "1.0.0")
             model_ver = info.get("model_version", "1.0.0")
 
-        print(f"🏷️ Phiên bản chuẩn bị Release - Backend: {backend_ver} | Model: {model_ver}")
-
-        chunk_backend(backend_ver)
-        run_cmd(f"git add {RELEASE_DATA_DIR}/")
+        print(f"🏷️ Phiên bản chuẩn bị Release - Model: {model_ver}")
 
         print("\n⏳ Kiểm tra sự thay đổi của AI Models bằng SHA256...")
         run_cmd(f"{sys.executable} scripts/collect_models.py")
