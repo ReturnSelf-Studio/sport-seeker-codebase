@@ -62,6 +62,7 @@ class _SearchPageState extends State<SearchPage> {
       _isSearching = true;
       _results.clear();
     });
+    
     try {
       var request = http.MultipartRequest(
           'POST', Uri.parse('http://127.0.0.1:10330/search'));
@@ -80,14 +81,24 @@ class _SearchPageState extends State<SearchPage> {
       }
 
       var response = await request.send();
+      var resData = await response.stream.bytesToString();
+      
       if (response.statusCode == 200) {
-        var resData = await response.stream.bytesToString();
-        setState(() => _results = jsonDecode(resData)['results']);
+        setState(() => _results = jsonDecode(resData)['results'] ?? []);
       } else {
-        throw Exception("Server báo lỗi HTTP ${response.statusCode}");
+        // Fix QA Issue: Bỏ qua các lỗi liên quan đến việc không có dữ liệu (No index, Not found, v.v)
+        // và chỉ hiển thị UX rỗng kết quả thân thiện.
+        setState(() => _results = []);
+        
+        // Chỉ log ra console thay vì đập vào mặt người dùng, hoặc hiển thị nếu nó thực sự là lỗi nghiêm trọng
+        String errorMsg = "";
+        try {
+           errorMsg = jsonDecode(resData)['detail']?.toString() ?? "";
+        } catch (_) {}
+        print("Search API Failed: ${response.statusCode} - $errorMsg");
       }
     } catch (e) {
-      _showError("Lỗi tìm kiếm: $e");
+      _showError("Lỗi kết nối: $e");
     } finally {
       setState(() => _isSearching = false);
     }
@@ -203,9 +214,20 @@ class _SearchPageState extends State<SearchPage> {
   Widget _buildResultsGrid() {
     if (_isSearching) return const Center(child: CircularProgressIndicator());
     if (_results.isEmpty) {
-      return const Center(
-          child: Text('Không có kết quả.',
-              style: TextStyle(color: AppTheme.textSecondary)));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.image_not_supported_outlined, size: 64, color: AppTheme.textSecondary.withOpacity(0.5)),
+            const SizedBox(height: 16),
+            const Text('Không tìm thấy hình ảnh/video tương ứng.',
+                style: TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text('Có thể người này không xuất hiện, hoặc dự án chưa được cấu hình xử lý.',
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+          ],
+        ),
+      );
     }
 
     return GridView.builder(

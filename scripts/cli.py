@@ -3,7 +3,7 @@ import argparse
 import platform
 from cli_config import check_env
 from cmd_backend import build_backend, kill_backend
-from cmd_ota import chunk_backend, chunk_models
+from cmd_ota import chunk_models
 from cmd_system import clean_all
 from cmd_hooks import pre_commit
 from core_utils import run_cmd
@@ -35,13 +35,12 @@ def build_all():
         build_windows()
     else:
         build_backend()
-        chunk_backend()
         build_ui()
 
 def main():
     parser = argparse.ArgumentParser(description="Sport Seeker CLI Tool")
     parser.add_argument("command", choices=[
-        "env", "build-backend", "chunk", "collect-models", "chunk-models",
+        "env", "build-backend", "chunk-models", "collect-models",
         "build-ui", "build", "kill", "clean", "pre-commit", "build-pdf"
     ], help="Lệnh cần thực thi")
 
@@ -53,14 +52,12 @@ def main():
     elif args.command == "build-backend":
         check_env()
         build_backend()
-    elif args.command == "chunk":
-        chunk_backend()
-    elif args.command == "collect-models":
-        check_env()
-        collect_models()
     elif args.command == "chunk-models":
         check_env()
         chunk_models()
+    elif args.command == "collect-models":
+        check_env()
+        collect_models()
     elif args.command == "build-ui":
         check_env()
         generate_env_dart()

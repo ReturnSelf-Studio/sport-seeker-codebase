@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
-import 'package:dio/dio.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,90 +13,6 @@ import 'backend_manager.dart';
 class BackendManagerMacOS extends BackendManager {
   BackendManagerMacOS() : super.internal();
   Process? _backendProcess;
-
-  Future<void> _silentCheckAndUpdate(String supportDirPath) async {
-    try {
-      String targetUrl = "${Env.backendBaseUrl}macos/version.json";
-
-      final res = await http.get(Uri.parse(targetUrl)).timeout(const Duration(seconds: 5));
-      if (res.statusCode != 200) return;
-
-      final data = jsonDecode(res.body);
-      final latestVersion = data['version'];
-      final baseUrl = data['base_url'];
-      final List<String> chunks = List<String>.from(data['chunks']);
-
-      final prefs = await SharedPreferences.getInstance();
-      final installedVersion = prefs.getString('installed_backend_version') ?? currentBundledVersion;
-
-      if (installedVersion == latestVersion) return;
-
-      print("[Update] Phát hiện bản OTA $latestVersion (macOS). Bắt đầu tải ${chunks.length} chunks...");
-      final stagingDir = Directory('$supportDirPath/sport_seeker_staging');
-      if (!await stagingDir.exists()) await stagingDir.create(recursive: true);
-
-      Dio dio = Dio();
-      int downloadedChunks = 0;
-
-      for (String chunkName in chunks) {
-        final chunkFile = File('${stagingDir.path}/$chunkName');
-        if (await chunkFile.exists()) {
-          downloadedChunks++;
-          continue;
-        }
-        print("[Update] Đang tải $chunkName...");
-        bool success = false;
-        int retries = 3;
-        while (!success && retries > 0) {
-          try {
-            await dio.download('$baseUrl$chunkName', chunkFile.path);
-            success = true;
-          } catch (e) {
-            retries--;
-            await Future.delayed(const Duration(seconds: 2));
-          }
-        }
-        if (!success) {
-          print("[Update] Rớt mạng quá nhiều. Dừng cập nhật OTA để lần sau tải tiếp!");
-          return;
-        }
-        downloadedChunks++;
-      }
-
-      print("[Update] Đã tải đủ 100% chunk. Bắt đầu ghép file...");
-      final tarFile = File('${stagingDir.path}/api_payload.tar.gz');
-      if (await tarFile.exists()) await tarFile.delete();
-
-      final sink = tarFile.openWrite(mode: FileMode.writeOnlyAppend);
-      for (String chunkName in chunks) {
-        final chunkFile = File('${stagingDir.path}/$chunkName');
-        await sink.addStream(chunkFile.openRead());
-        await chunkFile.delete();
-      }
-      await sink.close();
-
-      print("[Update] Đang giải nén AI Engine OTA...");
-      final extractDir = Directory('${stagingDir.path}/extracted');
-      if (await extractDir.exists()) await extractDir.delete(recursive: true);
-      await extractDir.create();
-
-      // Sử dụng tar native để giữ nguyên toàn bộ quyền file và symlinks
-      final extractResult = await Process.run('tar', ['-xzf', tarFile.path, '-C', extractDir.path]);
-      if (extractResult.exitCode != 0) {
-        print("[Update Error] Lỗi giải nén tar: ${extractResult.stderr}");
-        return;
-      }
-      await tarFile.delete();
-
-      await Process.run('chmod', ['-R', '+x', extractDir.path]);
-
-      await prefs.setString('staged_backend_version', latestVersion);
-      print("[Update] Sẵn sàng áp dụng bản $latestVersion ở lần mở app tiếp theo!");
-
-    } catch (e) {
-      print("[Update Error] $e");
-    }
-  }
 
   @override
   Future<void> startBackend({Function(String)? onProgress}) async {
@@ -111,6 +26,8 @@ class BackendManagerMacOS extends BackendManager {
 
     final currentPid = pid;
     final prefs = await SharedPreferences.getInstance();
+    
+    // Tự động load đường dẫn models từ phân vùng độc lập (bảo toàn 100% khi update)
     final customModelPath = prefs.getString('custom_model_path') ?? '';
     final customModelName = prefs.getString('custom_model_name') ?? 'buffalo_l';
 
@@ -124,38 +41,27 @@ class BackendManagerMacOS extends BackendManager {
 
     if (useBackendBinary) {
       final supportDir = await getApplicationSupportDirectory();
+      // Backend được cách ly hoàn toàn ở thư mục riêng
       final backendDir = Directory('${supportDir.path}/sport_seeker_backend');
-      final stagingDir = Directory('${supportDir.path}/sport_seeker_staging');
-      final extractDir = Directory('${stagingDir.path}/extracted');
-
-      final stagedVer = prefs.getString('staged_backend_version');
-      if (stagedVer != null && await extractDir.exists()) {
-        if (onProgress != null) onProgress("Đang áp dụng bản cập nhật AI Engine mới...");
-
-        if (await backendDir.exists()) await backendDir.delete(recursive: true);
-        await extractDir.rename(backendDir.path);
-
-        if(await stagingDir.exists()) await stagingDir.delete(recursive: true);
-        await prefs.setString('installed_backend_version', stagedVer);
-        await prefs.remove('staged_backend_version');
-      }
 
       pythonCmd = '${backendDir.path}/SportSeekerAPI';
       final exeFile = File(pythonCmd);
       final lastExtractedVersion = prefs.getString('extracted_bundled_version') ?? "";
 
+      // Logic "Clean & Reinstall Backend" khi có update
       if (!await exeFile.exists() || lastExtractedVersion != currentBundledVersion) {
-        if (onProgress != null) onProgress("Đang cài đặt và cập nhật AI Engine (10-30s)...");
+        if (onProgress != null) onProgress("Đang cài đặt và tối ưu AI Engine (10-30s)...");
 
+        // Xóa sạch Engine cũ và các Symlinks hỏng (Model / User data không nằm ở đây nên hoàn toàn an toàn)
         if (await backendDir.exists()) await backendDir.delete(recursive: true);
         await backendDir.create(recursive: true);
 
         try {
+          // Khôi phục Engine bằng lệnh tar chuẩn POSIX để giữ lại toàn bộ Symlinks của Paddle/Numpy
           final ByteData tarBytes = await rootBundle.load('assets/backend/api_payload.tar.gz');
           final tmpTar = File('${backendDir.path}/temp_payload.tar.gz');
           await tmpTar.writeAsBytes(tarBytes.buffer.asUint8List());
           
-          // Sử dụng lệnh tar hệ thống thay vì package archive
           final extractResult = await Process.run('tar', ['-xzf', tmpTar.path, '-C', backendDir.path]);
           if (extractResult.exitCode != 0) {
             throw Exception("Lỗi tar: ${extractResult.stderr}");
@@ -171,7 +77,6 @@ class BackendManagerMacOS extends BackendManager {
           return;
         }
       }
-      _silentCheckAndUpdate(supportDir.path).ignore();
     } else {
       pythonCmd = '../.venv/bin/python';
       args = ['../main.py'];
@@ -212,7 +117,7 @@ class BackendManagerMacOS extends BackendManager {
       if (isProcessDead()) {
         String errorMsg = getCrashLogs();
         if (errorMsg.length > 200) errorMsg = errorMsg.substring(errorMsg.length - 200);
-        throw Exception("AI Engine bị crash ngầm!\nChi tiết: $errorMsg");
+        throw Exception("AI Engine bị crash ngầm do lỗi thư viện hệ thống!\nChi tiết: $errorMsg");
       }
       try {
         final res = await http.get(Uri.parse('http://127.0.0.1:10330/health')).timeout(const Duration(milliseconds: 500));

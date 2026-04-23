@@ -72,50 +72,37 @@ class _WorkspacePageState extends State<WorkspacePage> {
     super.dispose();
   }
 
-  Future<void> _toggleProcess() async {
-    if (_isProcessing) {
-      // 1. NGAY LẬP TỨC ngắt Loading UI để tránh bị treo chờ Backend
+  Future<void> _startProcess() async {
+    if (_isProcessing) return; // Khoá tính năng khi đang chạy
+
+    setState(() {
+      _logs.clear();
+      _progress = 0.0;
+      _isProcessing = true;
+      _status = "ĐANG KHỞI TẠO...";
+    });
+    
+    try {
+      final res = await http.post(
+        Uri.parse('http://127.0.0.1:10330/process/start'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "project_id": widget.project['id'],
+          "pipeline_mode": _pipelineMode,
+          "frame_interval": _frameInterval,
+          "bib_min": 3,
+          "bib_max": 5
+        }),
+      );
+      if (res.statusCode != 200) {
+        throw Exception("Server trả về lỗi: ${res.body}");
+      }
+    } catch (e) {
       setState(() {
         _isProcessing = false;
-        _status = "ĐÃ GỬI LỆNH DỪNG";
+        _status = "LỖI KẾT NỐI API";
       });
-      
-      // 2. Gọi API báo cho Python Backend biết để hủy vòng lặp ngầm
-      try {
-        await http.post(Uri.parse('http://127.0.0.1:10330/api/process/stop'));
-      } catch (e) {
-        print('Lỗi kết nối khi gửi lệnh dừng: $e');
-      }
-    } else {
-      // Logic Bắt đầu tiến trình bình thường
-      setState(() {
-        _logs.clear();
-        _progress = 0.0;
-        _isProcessing = true;
-        _status = "ĐANG KHỞI TẠO...";
-      });
-      try {
-        final res = await http.post(
-          Uri.parse('http://127.0.0.1:10330/process/start'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            "project_id": widget.project['id'],
-            "pipeline_mode": _pipelineMode,
-            "frame_interval": _frameInterval,
-            "bib_min": 3,
-            "bib_max": 5
-          }),
-        );
-        if (res.statusCode != 200) {
-          throw Exception("Server trả về lỗi: ${res.body}");
-        }
-      } catch (e) {
-        setState(() {
-          _isProcessing = false;
-          _status = "LỖI KẾT NỐI API";
-        });
-        _showError("Lỗi xử lý: $e");
-      }
+      _showError("Lỗi xử lý: $e");
     }
   }
 
@@ -255,15 +242,13 @@ class _WorkspacePageState extends State<WorkspacePage> {
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      _isProcessing ? AppTheme.error : AppTheme.textPrimary,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  backgroundColor: _isProcessing ? AppTheme.border : AppTheme.textPrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 ),
-                onPressed: _toggleProcess,
-                child: Text(_isProcessing ? '■ DỪNG XỬ LÝ' : '▶ BẮT ĐẦU XỬ LÝ',
+                onPressed: _isProcessing ? null : _startProcess,
+                child: Text(_isProcessing ? '⏳ ĐANG XỬ LÝ...' : '▶ BẮT ĐẦU XỬ LÝ',
                     style: TextStyle(
-                        color: _isProcessing ? Colors.white : AppTheme.bgBase,
+                        color: _isProcessing ? AppTheme.textSecondary : AppTheme.bgBase,
                         fontWeight: FontWeight.bold)),
               ),
             ],
