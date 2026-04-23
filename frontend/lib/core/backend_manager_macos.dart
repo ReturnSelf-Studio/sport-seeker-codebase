@@ -14,6 +14,10 @@ class BackendManagerMacOS extends BackendManager {
   BackendManagerMacOS() : super.internal();
   Process? _backendProcess;
 
+  // Version key dùng app_version + build_number từ env.dart
+  // Mỗi lần `manage.sh build` chạy → build_number tăng → key này thay đổi → force reinstall backend
+  static const String _currentEngineVersion = '${Env.appVersion}+${Env.buildNumber}';
+
   @override
   Future<void> startBackend({Function(String)? onProgress}) async {
     if (onProgress != null) onProgress("Đang kiểm tra AI Engine (macOS)...");
@@ -26,8 +30,7 @@ class BackendManagerMacOS extends BackendManager {
 
     final currentPid = pid;
     final prefs = await SharedPreferences.getInstance();
-    
-    // Tự động load đường dẫn models từ phân vùng độc lập (bảo toàn 100% khi update)
+
     final customModelPath = prefs.getString('custom_model_path') ?? '';
     final customModelName = prefs.getString('custom_model_name') ?? 'buffalo_l';
 
@@ -41,27 +44,33 @@ class BackendManagerMacOS extends BackendManager {
 
     if (useBackendBinary) {
       final supportDir = await getApplicationSupportDirectory();
-      // Backend được cách ly hoàn toàn ở thư mục riêng
       final backendDir = Directory('${supportDir.path}/sport_seeker_backend');
 
       pythonCmd = '${backendDir.path}/SportSeekerAPI';
       final exeFile = File(pythonCmd);
-      final lastExtractedVersion = prefs.getString('extracted_bundled_version') ?? "";
+      final lastInstalledVersion = prefs.getString('installed_engine_version') ?? '';
 
-      // Logic "Clean & Reinstall Backend" khi có update
-      if (!await exeFile.exists() || lastExtractedVersion != currentBundledVersion) {
-        if (onProgress != null) onProgress("Đang cài đặt và tối ưu AI Engine (10-30s)...");
+      // Reinstall nếu: binary không tồn tại HOẶC version key không khớp
+      // Version key = appVersion+buildNumber → tự động thay đổi mỗi build mới
+      if (!await exeFile.exists() || lastInstalledVersion != _currentEngineVersion) {
+        if (onProgress != null) {
+          onProgress(
+            lastInstalledVersion.isEmpty
+                ? "Đang cài đặt AI Engine lần đầu (10-30s)..."
+                : "Phát hiện phiên bản mới, đang cập nhật AI Engine...",
+          );
+        }
 
-        // Xóa sạch Engine cũ và các Symlinks hỏng (Model / User data không nằm ở đây nên hoàn toàn an toàn)
+        // Xóa engine cũ (model/user data không nằm ở đây → an toàn)
         if (await backendDir.exists()) await backendDir.delete(recursive: true);
         await backendDir.create(recursive: true);
 
         try {
-          // Khôi phục Engine bằng lệnh tar chuẩn POSIX để giữ lại toàn bộ Symlinks của Paddle/Numpy
+          // Dùng tar chuẩn POSIX để giữ toàn bộ symlinks (.dylib của Paddle/NumPy)
           final ByteData tarBytes = await rootBundle.load('assets/backend/api_payload.tar.gz');
           final tmpTar = File('${backendDir.path}/temp_payload.tar.gz');
           await tmpTar.writeAsBytes(tarBytes.buffer.asUint8List());
-          
+
           final extractResult = await Process.run('tar', ['-xzf', tmpTar.path, '-C', backendDir.path]);
           if (extractResult.exitCode != 0) {
             throw Exception("Lỗi tar: ${extractResult.stderr}");
@@ -70,8 +79,12 @@ class BackendManagerMacOS extends BackendManager {
 
           await Process.run('chmod', ['-R', '+x', backendDir.path]);
 
-          await prefs.setString('extracted_bundled_version', currentBundledVersion);
-          await prefs.setString('installed_backend_version', currentBundledVersion);
+          // Lưu version key mới — lần sau sẽ skip nếu cùng build
+          await prefs.setString('installed_engine_version', _currentEngineVersion);
+
+          // Giữ key cũ để tương thích ngược (nếu code khác đang đọc)
+          await prefs.setString('extracted_bundled_version', _currentEngineVersion);
+          await prefs.setString('installed_backend_version', _currentEngineVersion);
         } catch (e) {
           if (onProgress != null) onProgress("Lỗi giải nén AI Engine: $e");
           return;
