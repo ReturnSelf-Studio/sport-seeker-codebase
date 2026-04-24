@@ -1,7 +1,8 @@
 {
-  "app_version": "1.0.0",
-  "build_number": 2,
-  "backend_version": "1.0.1",
+  "app_version": "1.0.6",
+  "build_number": 25,
+  "backend_version": "1.0.6",
+  "backend_source_hash": "f972be20cb3c39fc8d55f7506cb2b124a3b270312d075bbefe8d22281ee4d9f3",
   "model_version": "1.0.1",
   "release_notes": "Phiên bản có hệ thống Auto-Versioning."
 }
