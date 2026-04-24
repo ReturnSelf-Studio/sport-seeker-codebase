@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:archive/archive_io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'env.dart';
@@ -36,6 +35,30 @@ class ModelManager {
       _cancelToken!.cancel("User paused");
       isDownloading = false;
       statusMessage.value = "Đã tạm dừng";
+    }
+  }
+
+  // Hàm mới thay thế extractFileToDisk bằng Native Command
+  Future<void> _extractZip(String zipPath, String targetDir) async {
+    if (Platform.isWindows) {
+      // Dùng lệnh tar tích hợp sẵn trên Windows 10/11
+      final result = await Process.run('tar', ['-xf', zipPath, '-C', targetDir]);
+      if (result.exitCode != 0) {
+        // Fallback dùng PowerShell nếu tar bị lỗi
+        final psResult = await Process.run('powershell', [
+          '-command',
+          "Expand-Archive -Path '$zipPath' -DestinationPath '$targetDir' -Force"
+        ]);
+        if (psResult.exitCode != 0) {
+          throw Exception('Lỗi giải nén trên Windows: ${psResult.stderr}');
+        }
+      }
+    } else {
+      // macOS và Linux dùng unzip
+      final result = await Process.run('unzip', ['-o', zipPath, '-d', targetDir]);
+      if (result.exitCode != 0) {
+        throw Exception('Lỗi giải nén: ${result.stderr}');
+      }
     }
   }
 
@@ -135,7 +158,9 @@ class ModelManager {
       await sink.close();
 
       statusMessage.value = "Đang bung nén Models (quá trình này mất vài phút)...";
-      await extractFileToDisk(zipFile.path, targetDir);
+      
+      // Gọi hàm Native Command thay thế cho thư viện archive
+      await _extractZip(zipFile.path, targetDir);
 
       await zipFile.delete();
       await stagingDir.delete(recursive: true);

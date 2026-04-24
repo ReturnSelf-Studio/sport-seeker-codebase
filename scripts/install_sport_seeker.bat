@@ -110,7 +110,7 @@ if not exist "uv.exe" (
 
 :: --------------------------------------------------------
 :: BUOC 4: CHAY PYTHON INSTALLER
-:: pyproject.toml o thu muc nay → uv biet dung Python 3.11
+:: pyproject.toml o thu muc nay ? uv biet dung Python 3.11
 :: tools\installer.py se tu tao venv va pip install vao backend\
 :: --------------------------------------------------------
 :step4

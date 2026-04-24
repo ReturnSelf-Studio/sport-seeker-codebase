@@ -1,83 +1,59 @@
-# SPORT SEEKER
-## Hướng dẫn cài đặt – Windows (x64)
+# Hướng dẫn Cài đặt Sport Seeker (Windows)
 
-Sport Seeker là ứng dụng nhận diện khuôn mặt và số BIB chạy nội bộ. Trên nền tảng Windows, ứng dụng sẽ tự động tải và cấu hình môi trường AI một cách an toàn mà không ảnh hưởng đến hệ thống máy tính của bạn.
+Tài liệu này hướng dẫn chi tiết các bước để cài đặt và khởi chạy ứng dụng Sport Seeker trên hệ điều hành Windows 10 và Windows 11.
 
 ---
 
-## Yêu cầu hệ thống
-
-- **Hệ điều hành:** Windows 10 hoặc Windows 11 (64-bit)
-- **Mạng:** Cần có kết nối Internet ổn định cho lần cài đặt đầu tiên (để hệ thống tự động tải Python và các thư viện AI ~500MB)
+## Yêu cầu Hệ thống
+* **Hệ điều hành:** Windows 10 hoặc Windows 11 (64-bit).
+* **Dung lượng trống:** Tối thiểu 2GB.
+* **Kết nối Internet:** Cần thiết trong quá trình cài đặt để tải các thành phần bổ trợ.
 
 ---
 
 ## Các bước Cài đặt
 
-### Bước 1 – Giải nén file
+### Bước 1 – Giải nén gói cài đặt
+1. Tìm file **SportSeeker_Windows.zip** bạn đã tải về.
+2. Nhấn chuột phải vào file và chọn **Extract All...** (Giải nén tất cả).
+3. Chọn thư mục lưu trữ và nhấn **Extract**. 
+   *Lưu ý: Không chạy file cài đặt trực tiếp từ bên trong file Zip.*
 
-Sau khi tải file `SportSeeker_Windows.zip` về máy, bạn bắt buộc phải giải nén toàn bộ file ra một thư mục (Click chuột phải vào file ZIP → Chọn **Extract All...**).
+### Bước 2 – Thực hiện Cài đặt hệ thống
+Vào thư mục vừa giải nén, tìm file **install_sport_seeker.bat** và thực hiện theo các bước sau:
 
-> ⚠️ **Không được** click đúp vào file ZIP và chạy trực tiếp từ bên trong – ứng dụng sẽ báo lỗi.
+1. **Khởi chạy:** Nhấp đúp chuột (double-click) vào file **install_sport_seeker.bat**.
+2. **Xác nhận bảo mật:** Nếu xuất hiện cửa sổ cảnh báo "Windows protected your PC", hãy nhấn vào dòng chữ **More info** (Thông tin thêm), sau đó chọn **Run anyway** (Vẫn chạy).
+3. **Cài đặt thành phần bổ trợ (C++ Build Tools):** Tại bước 2/4 của tiến trình, hệ thống sẽ kiểm tra thư viện Microsoft C++ Build Tools.
+   - Nếu máy tính chưa có thành phần này, một thông báo **User Account Control (UAC)** sẽ yêu cầu quyền quản trị. Vui lòng chọn **Yes**.
+   - Một cửa sổ dòng lệnh mới sẽ xuất hiện để tự động cài đặt Build Tools. Hãy chờ khoảng **15-30 giây** cho đến khi tiến trình hoàn tất, sau đó **đóng cửa sổ phụ này** để quay lại màn hình chính.
+4. **Tiếp tục tiến trình:**
+   - **Đối với Windows 11:** Thông thường tiến trình sẽ tự động tiếp tục các bước 3 và 4.
+   - **Đối với Windows 10 (hoặc nếu tiến trình bị dừng):** Nếu cửa sổ Terminal ban đầu hiện thông báo "Press any key to exit" hoặc tự đóng lại, bạn chỉ cần **nhấp đúp chuột vào file install_sport_seeker.bat một lần nữa**. Hệ thống sẽ tự động bỏ qua các bước đã xong và hoàn tất phần còn lại.
+5. **Hoàn tất:** Khi màn hình hiển thị thông báo cài đặt thành công, bạn có thể đóng Terminal.
 
----
-
-### Bước 2 – Chạy công cụ Cài đặt
-
-Vào thư mục vừa giải nén, bạn sẽ thấy file `install_sport_seeker.bat`. Nhấn chuột phải vào vùng trống thư mục → chọn **Open in Terminal**. Sau đó gõ lệnh:
-
-```
-.\install_sport_seeker.bat
-```
-
-rồi nhấn **Enter**.
-
----
-
-### Bước 3 – Chờ hệ thống tự động cấu hình
-
-Hệ thống sẽ tự động tải và cài đặt môi trường AI. Quá trình này hiển thị thanh tiến trình màu sắc và mất khoảng **1 đến 3 phút** tùy vào tốc độ mạng. Vui lòng không đóng cửa sổ này.
-
----
-
-### Bước 4 – Tạo lối tắt (Shortcut)
-
-Khi cài đặt gần xong, hệ thống sẽ hỏi:
-
-> *"Bạn có muốn tạo Shortcut ngoài màn hình Desktop không? (Y/N)"*
-
-Gõ phím **Y** và bấm **Enter** để có icon ngoài màn hình chính. Ứng dụng cũng sẽ tự động thêm vào Start Menu. Khi thấy dòng chữ **"CÀI ĐẶT THÀNH CÔNG!"**, bấm phím bất kỳ để đóng cửa sổ.
+### Bước 3 – Khởi chạy ứng dụng
+Sau khi cài đặt thành công, bạn có thể mở ứng dụng bằng hai cách:
+* Tìm biểu tượng **Sport Seeker** trên màn hình Desktop.
+* Hoặc tìm kiếm ứng dụng trong **Start Menu**.
 
 ---
 
-### Bước 5 – Mở ứng dụng
-
-Ứng dụng đã được cài đặt vào hệ thống. Bạn có thể xóa thư mục giải nén ban đầu cho nhẹ máy. Để mở ứng dụng:
-
-- Click đúp vào icon **Sport Seeker** ngoài Desktop, hoặc
-- Bấm phím **Windows** và gõ `Sport Seeker` để tìm kiếm.
-
----
-
-## Lưu ý lần khởi chạy đầu tiên
-
-- App sẽ mất **1–3 phút** ở màn hình khởi động để tải PaddleOCR models về `~/.paddlex/` – cần có mạng.
-- Các lần mở sau sẽ nhanh hơn và có thể chạy hoàn toàn **offline**.
-- Nếu Windows Firewall hỏi quyền mạng, chọn **Allow** để cho phép tải models.
+## Lưu ý cho lần khởi chạy đầu tiên
+Trong lần đầu tiên sử dụng tính năng tìm kiếm AI hoặc quét khuôn mặt, ứng dụng sẽ tự động tải các mô hình trí tuệ nhân tạo (AI Models) từ máy chủ.
+* **Thời gian tải:** Tùy thuộc vào tốc độ mạng (khoảng 3-5 phút).
+* **Tiến độ:** Bạn có thể theo dõi thanh phần trăm (%) hiển thị ngay trên ứng dụng.
+* **Thư mục lưu trữ:** Các mô hình này sẽ được lưu tại đường dẫn `C:\Users\<Tên_User>\.paddleocr` và `~/.insightface`. Vui lòng không xóa các thư mục này để đảm bảo tốc độ khởi động cho những lần sau.
 
 ---
 
 ## Xử lý sự cố (Troubleshooting)
 
-**Script báo lỗi "Không tìm thấy thư mục resource":**
-Bạn đang chạy nhầm file `.bat` từ bên trong file ZIP chưa giải nén. Hãy làm lại Bước 1.
+**1. Lỗi "Unknown Publisher" hoặc không cho chạy file .bat:**
+Đây là cơ chế bảo vệ mặc định của Windows đối với ứng dụng nội bộ. Hãy thực hiện đúng như hướng dẫn tại **Bước 2.2** (More info -> Run anyway).
 
-**Cài đặt bị dừng quá lâu ở bước 3:**
-Hãy kiểm tra lại kết nối mạng của bạn. Nếu lỗi, hãy đóng cửa sổ và chạy lại file `.bat` một lần nữa.
+**2. Ứng dụng không khởi động được AI Engine:**
+Vui lòng kiểm tra xem Windows Firewall (Tường lửa) hoặc phần mềm diệt virus có đang chặn ứng dụng hay không. Hãy chọn **Allow Access** nếu có thông báo yêu cầu truy cập mạng.
 
-**Bị phần mềm diệt virus (Windows Defender) cảnh báo:**
-Do đây là phần mềm nội bộ (không đưa lên Microsoft Store), một số phần mềm diệt virus có thể nhận diện nhầm. Bạn có thể hoàn toàn yên tâm cho phép (**Allow**) để ứng dụng hoạt động bình thường.
-
----
-
-*Sport Seeker v1.0.0 · Tài liệu nội bộ – không phân phối bên ngoài*
+**3. Tiến trình cài đặt bị treo ở bước tải dữ liệu:**
+Hãy kiểm tra kết nối Internet của bạn. Bạn có thể tắt cửa sổ Terminal và chạy lại file **install_sport_seeker.bat** để hệ thống tiếp tục tải lại những phần còn thiếu.
