@@ -15,11 +15,20 @@ class ProjectDetailPage extends StatefulWidget {
 
 class _ProjectDetailPageState extends State<ProjectDetailPage> {
   late Map<String, dynamic> project;
+  
+  // Biến State quản lý trạng thái xử lý chung cho toàn bộ dự án
+  final ValueNotifier<bool> _isProcessingNotifier = ValueNotifier<bool>(false);
 
   @override
   void initState() {
     super.initState();
     project = Map.from(widget.project);
+  }
+
+  @override
+  void dispose() {
+    _isProcessingNotifier.dispose(); // Giải phóng RAM khi đóng dự án
+    super.dispose();
   }
 
   @override
@@ -104,8 +113,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             child: TabBarView(
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                WorkspacePage(project: project),
-                SearchPage(project: project),
+                // Truyền cờ isProcessingNotifier xuống cho 2 tab
+                WorkspacePage(project: project, isProcessingNotifier: _isProcessingNotifier),
+                SearchPage(project: project, isProcessingNotifier: _isProcessingNotifier),
               ],
             ),
           ),

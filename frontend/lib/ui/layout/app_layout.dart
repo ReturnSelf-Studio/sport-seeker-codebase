@@ -202,14 +202,13 @@ class _AppLayoutState extends State<AppLayout> {
         const PlaceholderPage(title: 'DASHBOARD', icon: '📊'), // index 0
         ProjectManagerPage(onOpenProject: _openProject), // index 1
         const SettingsPage(), // index 2
-        if (_currentProject != null) // index 3 (Hidden)
-          ProjectDetailPage(
-            key: ValueKey(_currentProject!['id']),
-            project: _currentProject!,
-            onBack: _closeProject,
-          )
-        else
-          const SizedBox.shrink(),
+        _currentProject != null // index 3 (Hidden)
+            ? ProjectDetailPage(
+                key: ValueKey(_currentProject!['id']),
+                project: _currentProject!,
+                onBack: _closeProject,
+              )
+            : const SizedBox.shrink(),
       ],
     );
   }
@@ -248,9 +247,7 @@ class _AppLayoutState extends State<AppLayout> {
                 _menus[index], _menuIcons[index], index == _selectedIndex, () {
               setState(() {
                 _selectedIndex = index;
-                if (index != 3) {
-                  _currentProject = null;
-                }
+                // Bỏ dòng _currentProject = null ở đây để không reset State của project đang chạy
               });
             });
           }),

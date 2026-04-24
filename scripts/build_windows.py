@@ -120,6 +120,7 @@ def build_windows():
         print("\n[6] Chuẩn bị đóng gói...")
 
         shutil.copy(ROOT_DIR / "scripts/install_sport_seeker.bat", dist_dir / "install_sport_seeker.bat")
+        shutil.copy(ROOT_DIR / "scripts/uninstall_sport_seeker.bat", dist_dir / "uninstall_sport_seeker.bat")
 
         (dist_dir / "pyproject.toml").write_text(RELEASE_PYPROJECT, encoding="utf-8")
         print("  -> Đã tạo pyproject.toml cho release.")

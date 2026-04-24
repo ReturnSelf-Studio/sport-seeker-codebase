@@ -24,8 +24,11 @@ def get_projects():
 
 @router.post("")
 def create_project(req: ProjectCreate):
-    p = pm.create_project(req.name, req.source_dir, req.event_date, req.notes)
-    return {"project": p}
+    try:
+        p = pm.create_project(req.name, req.source_dir, req.event_date, req.notes)
+        return {"project": p}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.put("/{project_id}")
 def update_project(project_id: str, req: ProjectUpdate):

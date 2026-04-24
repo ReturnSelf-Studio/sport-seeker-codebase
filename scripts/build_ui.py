@@ -50,6 +50,10 @@ def build_ui_macos():
     if cmd_script.exists():
         shutil.copy(cmd_script, release_dir)
         run_cmd(f"chmod +x '{release_dir}/install_sport_seeker.command'")
+    cmd_uninstall_script = ROOT_DIR / "scripts" / "uninstall_sport_seeker.command"
+    if cmd_uninstall_script.exists():
+        shutil.copy(cmd_uninstall_script, release_dir)
+        run_cmd(f"chmod +x '{release_dir}/uninstall_sport_seeker.command'")
 
     # Chép file PDF
     pdf_guide = ROOT_DIR / "dist" / "pdf" / "installation_guide_macos.pdf"

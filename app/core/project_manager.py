@@ -40,8 +40,16 @@ class ProjectManager:
                        event_date: str = "", notes: str = "") -> dict:
         """
         Tạo project mới: folder riêng + entry trong registry.
-        Returns project dict.
+        Returns project dict. Raise ValueError nếu trùng tên.
         """
+        projects = self._load_registry()
+        
+        # --- BẮT ĐẦU THÊM CHECK TRÙNG TÊN ---
+        target_name_lower = name.strip().lower()
+        if any(p.get("name", "").strip().lower() == target_name_lower for p in projects):
+            raise ValueError("Tên dự án đã tồn tại")
+        # --- KẾT THÚC THÊM CHECK TRÙNG TÊN ---
+
         project_id = str(uuid.uuid4())[:8]
         safe_name = _safe_dirname(name)
         project_dir = str(self.workspace_root / f"{safe_name}_{project_id}")
@@ -57,7 +65,6 @@ class ProjectManager:
             "created_at": datetime.now().isoformat(),
         }
 
-        projects = self._load_registry()
         projects.append(project)
         self._save_registry(projects)
         return project
