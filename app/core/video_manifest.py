@@ -9,6 +9,7 @@ Key = tên file (không phải full path) — đổi tên = video mới.
 import json
 import os
 import shutil
+import cv2
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -46,8 +47,8 @@ class VideoManifest:
     def sync_with_source(self, source_dir: str) -> dict:
         """
         Scan source_dir, đồng bộ manifest:
-        - Video mới (chưa có trong manifest) → thêm với status "no-scan", đọc total_frames
-        - Video đã có nhưng thiếu total_frames → backfill
+        - Video mới → thêm với status "no-scan", đọc total_frames qua OpenCV
+        - Video cũ thiếu total_frames → backfill
         - Video đã xóa khỏi folder → giữ nguyên trong manifest (không tự xóa)
         Returns summary dict.
         """
@@ -61,18 +62,16 @@ class VideoManifest:
                 entry = self._data.get(name)
 
                 if entry is None:
-                    # Video mới — đọc metadata đầy đủ
                     size, total_frames, fps = 0, None, None
                     try:
                         size = f.stat().st_size
                     except OSError:
                         pass
                     try:
-                        import cv2 as _cv2
-                        cap = _cv2.VideoCapture(str(f))
+                        cap = cv2.VideoCapture(str(f))
                         if cap.isOpened():
-                            total_frames = int(cap.get(_cv2.CAP_PROP_FRAME_COUNT))
-                            fps = cap.get(_cv2.CAP_PROP_FPS) or None
+                            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                            fps = cap.get(cv2.CAP_PROP_FPS) or None
                             cap.release()
                     except Exception:
                         pass
@@ -87,13 +86,12 @@ class VideoManifest:
                         "scan_version": 0,
                     }
                 elif entry.get("total_frames") is None:
-                    # Video cũ chưa có total_frames — backfill
+                    # Backfill video cũ chưa có total_frames
                     try:
-                        import cv2 as _cv2
-                        cap = _cv2.VideoCapture(str(f))
+                        cap = cv2.VideoCapture(str(f))
                         if cap.isOpened():
-                            tf = int(cap.get(_cv2.CAP_PROP_FRAME_COUNT))
-                            fp = cap.get(_cv2.CAP_PROP_FPS) or None
+                            tf = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                            fp = cap.get(cv2.CAP_PROP_FPS) or None
                             cap.release()
                             entry["total_frames"] = tf
                             entry["fps"] = fp
@@ -118,7 +116,7 @@ class VideoManifest:
     # ── Status helpers ────────────────────────────────────────────────────────
 
     def get_pending_videos(self, source_dir: str) -> list[str]:
-        """Trả về full path các video chưa quét (hoặc quét lại được yêu cầu)."""
+        """Trả về full path các video chưa quét."""
         src = Path(source_dir)
         result = []
         for f in sorted(src.rglob("*")):
@@ -136,20 +134,18 @@ class VideoManifest:
             if f.suffix.lower() in VIDEO_EXTENSIONS and META_DIR not in f.parts:
                 entry = self._data.get(f.name, {
                     "size_bytes": 0,
+                    "total_frames": None,
+                    "fps": None,
                     "duration_seconds": None,
                     "scan_status": "no-scan",
                     "last_scanned_at": None,
                     "scan_version": 0,
                 })
-                result.append({
-                    "name": f.name,
-                    "path": str(f),
-                    **entry,
-                })
+                result.append({"name": f.name, "path": str(f), **entry})
         return result
 
     def mark_scanning(self, video_name: str):
-        """Đánh dấu video đang được quét (trạng thái tạm thời)."""
+        """Đánh dấu video đang được quét."""
         if video_name in self._data:
             self._data[video_name]["scan_status"] = "scanning"
             self.save()
@@ -173,7 +169,7 @@ class VideoManifest:
             self.save()
 
     def reset_all_scanning(self):
-        """Khi app restart, reset mọi entry "scanning" về "no-scan" (crash recovery)."""
+        """Crash recovery: reset mọi entry "scanning" về "no-scan" khi app restart."""
         changed = False
         for entry in self._data.values():
             if entry.get("scan_status") == "scanning":
@@ -189,19 +185,13 @@ class VideoManifest:
 # ── Index backup/restore ──────────────────────────────────────────────────────
 
 def backup_index(project_dir: str) -> Optional[str]:
-    """
-    Backup toàn bộ index folder trước khi start session.
-    Returns backup path hoặc None nếu không có gì để backup.
-    """
+    """Backup index folder trước khi start session. Returns backup path hoặc None."""
     index_dir = Path(project_dir) / "index"
     backup_dir = Path(project_dir) / META_DIR / "index_backup"
 
     if not index_dir.exists():
         return None
-
-    # Kiểm tra có file nào không
-    files = list(index_dir.rglob("*"))
-    if not any(f.is_file() for f in files):
+    if not any(f.is_file() for f in index_dir.rglob("*")):
         return None
 
     if backup_dir.exists():
@@ -211,14 +201,11 @@ def backup_index(project_dir: str) -> Optional[str]:
 
 
 def restore_index(project_dir: str) -> bool:
-    """
-    Restore index từ backup. Returns True nếu thành công.
-    """
+    """Restore index từ backup. Returns True nếu thành công."""
     index_dir = Path(project_dir) / "index"
     backup_dir = Path(project_dir) / META_DIR / "index_backup"
 
     if not backup_dir.exists():
-        # Không có backup = index rỗng ban đầu, xóa index hiện tại
         if index_dir.exists():
             shutil.rmtree(index_dir)
         index_dir.mkdir(parents=True, exist_ok=True)

@@ -8,6 +8,7 @@ Pipeline xử lý video/ảnh với:
 - Backup/restore tích hợp qua engine.py
 """
 
+import json
 import os
 import time
 import asyncio
@@ -23,8 +24,7 @@ from app.core.project_manager import ProjectManager
 from app.core.vector_store import VectorStore
 from app.core.video_manifest import VideoManifest, clear_backup
 from app.services.ai_engine import ai_engine
-import json
-from app.services.ws_manager import emit_log, emit_progress, emit_stage, ws_manager
+from app.services.ws_manager import emit_log, emit_stage, ws_manager
 
 pm = ProjectManager()
 
@@ -165,17 +165,16 @@ async def _process_single_video(fpath: str, vs: VectorStore, manifest: VideoMani
     from app.core.tracker import FaceTracker
 
     fname = os.path.basename(fpath)
-    video_name = fname
     project = pm.get_project(config.project_id)
     thumb_dir = os.path.join(project["project_dir"], ".thumbnails")
     os.makedirs(thumb_dir, exist_ok=True)
 
-    manifest.mark_scanning(video_name)
+    manifest.mark_scanning(fname)
 
     cap = cv2.VideoCapture(fpath)
     if not cap.isOpened():
         await emit_log(f"   ⚠ Không mở được video: {fname}")
-        manifest.mark_failed(video_name)
+        manifest.mark_failed(fname)
         return False
 
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -218,14 +217,12 @@ async def _process_single_video(fpath: str, vs: VectorStore, manifest: VideoMani
                 continue
 
             if item is None:
-                # Flush batch còn lại
                 if batch_frames:
                     _process_video_batch(
                         batch_frames, batch_frame_counts, batch_timestamps,
                         tracker, result_queue, config, fpath, do_face, do_bib,
                         ai_engine.FaceProcessor, ai_engine.OCRProcessor, ai_engine.SentenceTransformer,
                         process_interval, no_face_streak, thumb_dir)
-                # Finalize tracker
                 if tracker:
                     remaining = tracker.finalize()
                     if remaining:
@@ -306,18 +303,16 @@ async def _process_single_video(fpath: str, vs: VectorStore, manifest: VideoMani
     t_detect.join()
     t_save.join()
 
-    # Kiểm tra có bị interrupt không
     if ai_engine.processing_stop_flag:
-        manifest.mark_failed(video_name)
+        manifest.mark_failed(fname)
         return False
 
-    # Hoàn tất: save index + update manifest
     vs.save()
-    manifest.mark_done(video_name, duration_seconds=duration)
+    manifest.mark_done(fname, duration_seconds=duration)
     await emit_log(f"   ✅ Xong: {fname}")
     await ws_manager.broadcast(json.dumps({
         "type": "video_done",
-        "data": {"name": video_name, "total_frames": total_frames}
+        "data": {"name": fname, "total_frames": total_frames}
     }))
     return True
 
@@ -364,7 +359,6 @@ async def run_processing(config: ProcessConfig):
             key=lambda f: f.stat().st_size if f.exists() else 0
         )
 
-        # Lấy video từ manifest: chỉ pending (hoặc tất cả nếu rescan_all)
         if config.rescan_all:
             raw_videos = [
                 f for f in src.rglob("*")
@@ -374,7 +368,6 @@ async def run_processing(config: ProcessConfig):
         else:
             raw_videos = [Path(p) for p in manifest.get_pending_videos(source_dir)]
 
-        # Sort video theo size_bytes ascending (nhỏ → lớn)
         video_paths = sorted(
             (str(f) for f in raw_videos),
             key=lambda p: Path(p).stat().st_size if Path(p).exists() else 0
@@ -395,7 +388,6 @@ async def run_processing(config: ProcessConfig):
         vs = VectorStore(load_existing=True)
 
         for idx, (fpath, ftype) in enumerate(all_files):
-            # Pause: chờ giữa các file (không pause giữa chừng 1 video)
             while ai_engine.processing_pause_flag and not ai_engine.processing_stop_flag:
                 await asyncio.sleep(0.5)
 
@@ -432,7 +424,6 @@ async def run_processing(config: ProcessConfig):
                                              "type": "bib"} for t in bibs]
                                 vs.add_bib_vectors(vectors, metadata)
 
-                # Save sau mỗi ảnh cũng được (ảnh nhanh)
                 vs.save()
 
             elif ftype == "video":
@@ -440,8 +431,6 @@ async def run_processing(config: ProcessConfig):
                     fpath, vs, manifest, config, do_face, do_bib)
                 if not completed and ai_engine.processing_stop_flag:
                     break
-
-            await emit_progress(idx + 1, total)
 
         if not ai_engine.processing_stop_flag:
             await emit_log("✅ Hoàn tất toàn bộ!")
