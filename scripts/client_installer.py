@@ -47,7 +47,7 @@ def clean_old_installation():
 # ----------------------------------------------------------------
 def copy_resources():
     print("\n[3/6] Đang sao chép ứng dụng vào AppData...")
-    
+
     print(f"-> Copy từ : {RESOURCE_DIR}")
     print(f"-> Đích    : {APP_DIR}")
     # Exclude models_bundle (deploy riêng ở bước tiếp theo)
@@ -113,6 +113,52 @@ def _find_uv(backend_dir: Path) -> str:
     return "uv"
 
 
+def _venv_needs_rebuild(backend_dir: Path) -> bool:
+    """
+    Trả về True nếu .venv cần xóa và tạo lại.
+
+    Logic: so sánh hash của requirements-windows.txt hiện tại
+    với hash đã lưu trong .venv/.req_hash lần cài trước.
+    Nếu requirements thay đổi → rebuild để tránh stale packages
+    (ví dụ: torch CUDA build từ lần cài cũ không bị replace đúng cách).
+    """
+    import hashlib
+    req_file = backend_dir / "requirements-windows.txt"
+    hash_file = backend_dir / ".venv" / ".req_hash"
+    venv_dir = backend_dir / ".venv"
+
+    if not venv_dir.exists():
+        return False  # chưa có venv → uv venv tạo mới bình thường
+
+    if not req_file.exists():
+        return False  # không có requirements → không làm gì
+
+    current_hash = hashlib.md5(req_file.read_bytes()).hexdigest()
+
+    if not hash_file.exists():
+        # Venv cũ, không có hash file → có thể là install từ version cũ
+        # Xóa để đảm bảo sạch
+        print("  -> Phát hiện venv cũ không có version marker → rebuild để đảm bảo tương thích.")
+        return True
+
+    saved_hash = hash_file.read_text(encoding="utf-8").strip()
+    if saved_hash != current_hash:
+        print("  -> Phát hiện thay đổi trong requirements → rebuild venv.")
+        return True
+
+    return False
+
+
+def _save_req_hash(backend_dir: Path):
+    """Lưu hash requirements-windows.txt vào .venv/.req_hash sau khi cài thành công."""
+    import hashlib
+    req_file = backend_dir / "requirements-windows.txt"
+    hash_file = backend_dir / ".venv" / ".req_hash"
+    if req_file.exists():
+        current_hash = hashlib.md5(req_file.read_bytes()).hexdigest()
+        hash_file.write_text(current_hash, encoding="utf-8")
+
+
 def _run_pip_install(uv_cmd: str, backend_dir: Path, env_vars: dict) -> int:
     """
     Chạy uv pip install vào đúng venv, với output streaming.
@@ -142,6 +188,12 @@ def setup_python_env():
     print("\n[5/6] Đang thiết lập môi trường AI Backend...")
     backend_dir = APP_DIR / "backend"
     uv_cmd = _find_uv(backend_dir)
+
+    # Xóa venv nếu requirements thay đổi (tránh stale packages như torch CUDA build)
+    if _venv_needs_rebuild(backend_dir):
+        venv_dir = backend_dir / ".venv"
+        print("-> Đang xóa môi trường cũ...")
+        shutil.rmtree(venv_dir, ignore_errors=True)
 
     print("-> Đang khởi tạo Virtual Environment (Python 3.11)...")
     run_cmd(f'"{uv_cmd}" venv --python 3.11', cwd=backend_dir, quiet=True)
@@ -174,6 +226,9 @@ def setup_python_env():
         print(f"  Log chi tiết: {LOGS_DIR / 'install_detail.log'}")
         print("=" * 55)
         sys.exit(1)
+
+    # Lưu hash để detect thay đổi ở lần install sau
+    _save_req_hash(backend_dir)
 
     print()
     print("-> Môi trường AI đã sẵn sàng.")
