@@ -10,6 +10,20 @@ if sys.platform == 'win32':
     os.environ["FLAGS_use_new_executor"] = "0"
     os.environ["PADDLE_DISABLE_ONEDNN"] = "1"
 
+print("\n" + "="*60, flush=True)
+print(f"🕵️ KIỂM TRA MÔI TRƯỜNG KHỞI CHẠY", flush=True)
+print(f" -> PID: {os.getpid()}", flush=True)
+print(f" -> CWD (Thư mục làm việc): {os.getcwd()}", flush=True)
+print(f" -> Executable (File chạy): {sys.executable}", flush=True)
+print(f" -> Prefix (Môi trường ảo): {sys.prefix}", flush=True)
+
+try:
+    import posthog
+    print(f" -> ✅ POSTHOG OK! File thư viện nằm tại: {posthog.__file__}", flush=True)
+except ImportError as e:
+    print(f" -> ❌ LỖI POSTHOG: Không tìm thấy thư viện. ({e})", flush=True)
+print("="*60 + "\n", flush=True)
+
 import multiprocessing
 from pathlib import Path
 

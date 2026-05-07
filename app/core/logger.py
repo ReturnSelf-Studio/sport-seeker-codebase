@@ -3,12 +3,13 @@ import sys
 import platform
 import json
 import logging
+import traceback
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from app.core.config import settings
 
 class StreamToLogger:
-    """Điều hướng stdout và stderr (print, lỗi báo đỏ) vào file log"""
+    """Điều hướng stdout và stderr (print, báo lỗi) vào file log an toàn"""
     def __init__(self, logger, original_stream, log_level):
         self.logger = logger
         self.original_stream = original_stream
@@ -29,6 +30,7 @@ class StreamToLogger:
             self.original_stream.write(message)
             self.original_stream.flush()
         except (UnicodeEncodeError, Exception):
+            # Fallback cực mạnh: nếu cmd không hỗ trợ ký tự lạ, ép kiểu sang ascii bỏ qua lỗi
             try:
                 safe_msg = message.encode('ascii', errors='ignore').decode('ascii')
                 self.original_stream.write(safe_msg)
@@ -46,28 +48,51 @@ class StreamToLogger:
         return getattr(self.original_stream, attr)
 
 
-def _log_system_info(logger):
-    """Ghi thông tin phần cứng, HĐH và version app vào log để chẩn đoán"""
-    app_version = "Unknown"
-    try:
-        # Đường dẫn từ app/core/logger.py lùi ra root folder
-        root_dir = Path(__file__).resolve().parent.parent.parent
-        version_file = root_dir / "version.json"
-        if version_file.exists():
-            with open(version_file, "r", encoding="utf-8") as f:
-                app_version = json.load(f).get("version", "Unknown")
-    except Exception:
-        pass
+def handle_unhandled_exception(exc_type, exc_value, exc_traceback):
+    """Bắt tất cả lỗi crash (Unhandled Exceptions) và ghi kèm stack trace"""
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
 
-    logger.info("="*50)
-    logger.info("🚀 KHỞI ĐỘNG BACKEND SPORT SEEKER")
-    logger.info("="*50)
-    logger.info("--- THÔNG TIN HỆ THỐNG GỠ LỖI ---")
-    logger.info(f"Version App  : v{app_version}")
-    logger.info(f"Hệ Điều Hành : {platform.system()} {platform.release()} ({platform.version()})")
+    logger = logging.getLogger("SportSeekerBackend")
+    logger.critical("[FATAL] [CRASH REPORT] LỖI HỆ THỐNG KHÔNG LƯỜNG TRƯỚC:", exc_info=(exc_type, exc_value, exc_traceback))
+
+
+def _log_system_info(logger):
+    """Ghi thông tin phần cứng, HĐH và toàn bộ version vào log để chẩn đoán"""
+    os_name = f"{platform.system()} {platform.release()}"
+    if platform.system() == "Windows":
+        try:
+            build = sys.getwindowsversion().build
+            if build >= 22000:
+                os_name = "Windows 11"
+        except AttributeError:
+            pass
+
+    logger.info("==================================================")
+    logger.info("[START] KHỞI ĐỘNG BACKEND SPORT SEEKER")
+    logger.info("==================================================")
+    logger.info("--- THÔNG TIN HỆ THỐNG ---")
+    logger.info(f"Hệ Điều Hành : {os_name} (Build: {platform.version()})")
     logger.info(f"Kiến trúc CPU: {platform.machine()} ({platform.architecture()[0]})")
     logger.info(f"Python Ver   : {platform.python_version()}")
     logger.info(f"ONNX Provider: {settings.ONNX_PROVIDER} ({settings.ONNX_PROVIDER_REASON})")
+    
+    try:
+        root_dir = Path(__file__).resolve().parent.parent.parent
+        version_file = root_dir / "version.json"
+        if version_file.exists():
+            logger.info("--- THÔNG TIN PHIÊN BẢN ---")
+            with open(version_file, "r", encoding="utf-8") as f:
+                version_data = json.load(f)
+                for key, value in version_data.items():
+                    formatted_key = key.replace("_", " ").title()
+                    logger.info(f"{formatted_key.ljust(20)}: {value}")
+        else:
+            logger.warning("[SYSTEM] Không tìm thấy file version.json tại thư mục gốc!")
+    except Exception as e:
+        logger.error(f"[SYSTEM] Lỗi khi đọc file version.json: {e}")
+
     logger.info("---------------------------------")
 
 
@@ -81,19 +106,24 @@ def setup_logging():
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "backend.log"
 
-    # SET SIZE: 20MB per file, giữ 5 bản sao lưu
     handler = RotatingFileHandler(log_file, maxBytes=20*1024*1024, backupCount=5, encoding='utf-8')
-    formatter = logging.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    
+    # FORMATTER tự động gắn Label [INFO], [ERROR], [WARNING] cho từng dòng log
+    formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     handler.setFormatter(formatter)
 
     logger = logging.getLogger("SportSeekerBackend")
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     
-    # Tránh bị nhân đôi handler nếu setup_logging vô tình được gọi nhiều lần
     if not logger.handlers:
         logger.addHandler(handler)
+
+    sys.excepthook = handle_unhandled_exception
 
     _log_system_info(logger)
 
     sys.stdout = StreamToLogger(logger, sys.stdout, logging.INFO)
     sys.stderr = StreamToLogger(logger, sys.stderr, logging.ERROR)
+
+    return logger
+    

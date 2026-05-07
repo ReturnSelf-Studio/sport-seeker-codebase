@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 
+import 'env.dart';
 import 'backend_manager.dart';
 
 class BackendManagerWindows extends BackendManager {
@@ -17,7 +18,9 @@ class BackendManagerWindows extends BackendManager {
     final String backendRoot = '$appData\\SportSeeker\\app\\backend';
 
     String pythonCmd = '$backendRoot\\.venv\\Scripts\\python.exe';
-    String scriptPath = '$backendRoot\\main.py';
+    // Đã sửa lại thành chạy trực tiếp file main.py thay vì absolute path 
+    // vì chúng ta sẽ cấu hình workingDirectory ngay bên dưới
+    String scriptPath = 'main.py';
 
     if (!await File(pythonCmd).exists()) {
       throw Exception("Không tìm thấy môi trường AI! Vui lòng chạy file 'install_sport_seeker.bat' trước.");
@@ -25,17 +28,31 @@ class BackendManagerWindows extends BackendManager {
 
     final env = Map<String, String>.from(Platform.environment);
     env['SPORT_SEEKER_PARENT_PID'] = pid.toString();
-    env['PYTHONUNBUFFERED'] = '1'; // Ép Python in log ra ngay lập tức để lấy phần trăm
+    env['PYTHONUNBUFFERED'] = '1'; // Ep Python in log ra ngay lap tuc de lay phan tram
+    env['PYTHONIOENCODING'] = 'utf-8';
+    // Analytics — backend dùng để init PostHog
+    env['POSTHOG_API_KEY'] = Env.posthogApiKey;
+    env['POSTHOG_API_HOST'] = Env.posthogApiHost;
+    env['SPORT_SEEKER_APP_VERSION'] = Env.appVersion;
+    env['SPORT_SEEKER_BUILD_NUMBER'] = Env.buildNumber.toString();
 
     try {
       await Process.run('cmd', ['/c', 'for /f "tokens=5" %a in (\'netstat -aon ^| findstr :10330\') do taskkill /F /PID %a /T']);
       await Future.delayed(const Duration(milliseconds: 1000));
 
+      print("=" * 60);
+      print("🚀 FRONTEND SPAWN BACKEND COMMAND:");
+      print("Executable : $pythonCmd");
+      print("Arguments  : ${[scriptPath].join(' ')}");
+      print("Working Dir: $backendRoot");
+      print("=" * 60);
+
       _backendProcess = await Process.start(
         pythonCmd,
         [scriptPath],
         environment: env,
-        runInShell: false
+        runInShell: false,
+        workingDirectory: backendRoot // DÒNG QUAN TRỌNG NHẤT: Ép tiến trình chạy đúng tại thư mục backend
       );
 
       bool processDied = false;
@@ -45,14 +62,14 @@ class BackendManagerWindows extends BackendManager {
 
       String crashLogs = "";
 
-      _backendProcess?.stdout.transform(utf8.decoder).listen((data) {
+      _backendProcess?.stdout.transform(const Utf8Decoder(allowMalformed: true)).listen((data) {
         stdout.write('[API] $data');
         if (data.trim().isNotEmpty) {
           latestLog.value = data.trim().split('\n').last;
         }
       });
 
-      _backendProcess?.stderr.transform(utf8.decoder).listen((data) {
+      _backendProcess?.stderr.transform(const Utf8Decoder(allowMalformed: true)).listen((data) {
         stderr.write('[API ERR] $data');
         crashLogs += data;
         if (data.trim().isNotEmpty) {

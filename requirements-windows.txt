@@ -4,7 +4,7 @@
 
 # ============================================================
 # PRE-INSTALL: Insightface
-# Khong co wheel chinh thuc tren PyPI cho Windows → dung prebuilt
+# Khong co wheel chinh thuc tren PyPI cho Windows -> dung prebuilt
 # tu Gourieff/Assets (tin cay, duoc dung rong rai boi cong dong ComfyUI)
 # Khai bao TRUOC de pip/uv resolve dung dependency
 # ============================================================
@@ -22,13 +22,15 @@ insightface @ https://github.com/Gourieff/Assets/raw/main/Insightface/insightfac
 
 # ============================================================
 # TORCH — CPU-only build
-# Phải khai báo TRƯỚC sentence-transformers để uv/pip resolve đúng.
-# sentence-transformers kéo torch như transitive dep — nếu không pin,
-# pip tự chọn CUDA build → c10.dll crash trên máy không có NVIDIA GPU.
-# CPU build hoạt động trên mọi máy Windows (Intel/AMD, có hoặc không GPU).
+# BẮT BUỘC đổi PyTorch thành index chính, PyPI thành index phụ 
+# để uv/pip không tự động tải bản CUDA 2.5GB gây crash c10.dll
 # ============================================================
---extra-index-url https://download.pytorch.org/whl/cpu
+--index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://pypi.org/simple
+
 torch>=2.0.0
+torchvision
+torchaudio
 
 # ============================================================
 # CORE
@@ -59,7 +61,6 @@ rapidocr-onnxruntime>=1.4.0
 
 # ============================================================
 # TEXT EMBEDDINGS
-# sentence-transformers sẽ dùng torch CPU build đã pin ở trên.
 # ============================================================
 sentence-transformers>=2.2.2
 
@@ -75,3 +76,8 @@ python-multipart>=0.0.6
 # SYSTEM UTILS
 # ============================================================
 psutil>=5.9.0
+
+# ============================================================
+# ANALYTICS
+# ============================================================
+posthog>=3.0.0

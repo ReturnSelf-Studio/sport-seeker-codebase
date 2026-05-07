@@ -4,8 +4,8 @@
 
 | Path | Role |
 |------|------|
-| `/Users/arlix/projects/AIBus-SportSeeker/codebase-minimal/` | Working branch (`minimal-codebase`) — edit + push |
-| `/Users/arlix/projects/AIBus-SportSeeker/codebase-main/` | Build branch (`main`) — copy từ minimal vào rồi build |
+| `minimal-codebase/` | Working branch (`minimal-codebase`) — chỉ chứa code/config, edit + push |
+| `../sport-seeker-codebase/` | Branch `main` cùng repo — nhận file từ devtools local để build/release |
 
 ## Stack
 
@@ -98,3 +98,4 @@ frontend/lib/
 - Video sort theo `size_bytes` ascending — nhỏ/ngắn xử lý trước.
 - Backend OTA đã bỏ — chỉ còn model OTA.
 - Stop/Pause UI đã gỡ khỏi workspace để tránh lỗi logic UX.
+- Analytics/tracking được định hướng chuyển về backend để đồng bộ Windows/macOS; frontend không nên là source of truth cho session/device metrics.

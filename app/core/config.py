@@ -24,20 +24,25 @@ def _detect_onnx_provider() -> tuple:
 
         if system == "Darwin" and machine == "arm64":
             if "CoreMLExecutionProvider" in available:
-                return "CoreMLExecutionProvider", "macOS Apple Silicon → CoreML"
-            return "CPUExecutionProvider", "macOS arm64 nhưng CoreML không khả dụng → CPU"
+                return "CoreMLExecutionProvider", "macOS Apple Silicon -> CoreML"
+            return "CPUExecutionProvider", "macOS arm64 nhung CoreML khong kha dung -> CPU"
 
         if system == "Windows":
             if "DmlExecutionProvider" in available:
-                return "DmlExecutionProvider", "Windows → DirectML (GPU)"
-            return "CPUExecutionProvider", "Windows nhưng DirectML không khả dụng → CPU"
+                return "DmlExecutionProvider", "Windows -> DirectML (GPU)"
+            return "CPUExecutionProvider", "Windows nhung DirectML khong kha dung -> CPU"
 
-        return "CPUExecutionProvider", f"{system} {machine} → CPU"
+        return "CPUExecutionProvider", f"{system} {machine} -> CPU"
 
-    except ImportError:
-        return "CPUExecutionProvider", "onnxruntime chưa cài → CPU fallback"
+    except ImportError as e:
+        # Thay vì đoán "chưa cài", ta in thẳng lỗi gốc ra để biết chính xác thiếu package hay thiếu DLL
+        return "CPUExecutionProvider", f"ImportError ({e}) -> CPU fallback"
+    except OSError as e:
+        # Bắt cụ thể các lỗi Hệ điều hành (ví dụ: WinError 1114 khi load DLL trên Windows)
+        return "CPUExecutionProvider", f"OSError/DLL Error ({e}) -> CPU fallback"
     except Exception as e:
-        return "CPUExecutionProvider", f"lỗi detect provider ({e}) → CPU fallback"
+        return "CPUExecutionProvider", f"Loi khong xac dinh ({type(e).__name__}: {e}) -> CPU fallback"
+
 
 def _get_models_root() -> Path:
     """
@@ -83,9 +88,10 @@ class Settings:
     IMAGE_EXTENSIONS: tuple = (".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tiff")
 
     def log_startup_info(self) -> None:
-        print(f"[SportSeeker] ONNX Provider : {self.ONNX_PROVIDER}")
-        print(f"[SportSeeker] Reason        : {self.ONNX_PROVIDER_REASON}")
-        print(f"[SportSeeker] ctx_id        : {self.INSIGHTFACE_CTX_ID}")
-        print(f"[SportSeeker] Models root   : {self.MODELS_ROOT}")
+        # Sử dụng Label text [INFO] chuẩn mực, thay vì print trần trụi
+        print(f"[INFO] [SportSeeker] ONNX Provider : {self.ONNX_PROVIDER}")
+        print(f"[INFO] [SportSeeker] Reason        : {self.ONNX_PROVIDER_REASON}")
+        print(f"[INFO] [SportSeeker] ctx_id        : {self.INSIGHTFACE_CTX_ID}")
+        print(f"[INFO] [SportSeeker] Models root   : {self.MODELS_ROOT}")
 
 settings = Settings()

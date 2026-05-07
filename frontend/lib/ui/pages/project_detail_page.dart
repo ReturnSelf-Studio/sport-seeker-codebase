@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/tracking_service.dart';
 import '../theme.dart';
 import 'workspace_page.dart';
 import 'search_page.dart';
@@ -13,9 +14,11 @@ class ProjectDetailPage extends StatefulWidget {
   State<ProjectDetailPage> createState() => _ProjectDetailPageState();
 }
 
-class _ProjectDetailPageState extends State<ProjectDetailPage> {
+class _ProjectDetailPageState extends State<ProjectDetailPage>
+    with SingleTickerProviderStateMixin {
   late Map<String, dynamic> project;
-  
+  late TabController _tabController;
+
   // Biến State quản lý trạng thái xử lý chung cho toàn bộ dự án
   final ValueNotifier<bool> _isProcessingNotifier = ValueNotifier<bool>(false);
 
@@ -23,22 +26,42 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   void initState() {
     super.initState();
     project = Map.from(widget.project);
+    final hasIndex = project['has_index'] ?? false;
+    _tabController = TabController(
+      length: 2,
+      initialIndex: hasIndex ? 1 : 0,
+      vsync: this,
+    )..addListener(_onTabChanged);
+    _trackCurrentTab();
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
     _isProcessingNotifier.dispose(); // Giải phóng RAM khi đóng dự án
     super.dispose();
   }
 
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    _trackCurrentTab();
+  }
+
+  void _trackCurrentTab() {
+    final tabIndex = _tabController.index;
+    TrackingService.instance.trackScreen(
+      tabIndex == 0 ? 'workspace' : 'search',
+      properties: {
+        'project_id': project['id'],
+        'project_name': project['name'],
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    bool hasIndex = project['has_index'] ?? false;
-
-    return DefaultTabController(
-      length: 2,
-      initialIndex: hasIndex ? 1 : 0,
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
@@ -86,6 +109,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                     border: Border.all(color: AppTheme.border),
                   ),
                   child: TabBar(
+                    controller: _tabController,
                     isScrollable: true,
                     dividerColor: Colors.transparent,
                     indicatorSize: TabBarIndicatorSize.tab,
@@ -111,6 +135,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           ),
           Expanded(
             child: TabBarView(
+              controller: _tabController,
               physics: const NeverScrollableScrollPhysics(),
               children: [
                 // Truyền cờ isProcessingNotifier xuống cho 2 tab
@@ -120,7 +145,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             ),
           ),
         ],
-      ),
     );
   }
 }

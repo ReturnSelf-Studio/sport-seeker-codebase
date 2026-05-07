@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/backend_manager.dart';
 import '../../core/env.dart';
+import '../../core/tracking_service.dart';
 import '../theme.dart';
 import '../pages/project_manager_page.dart';
 import '../pages/project_detail_page.dart';
@@ -44,6 +45,7 @@ class _AppLayoutState extends State<AppLayout> {
     _checkModelStatus();
     _statusTimer =
         Timer.periodic(const Duration(seconds: 2), (_) => _checkModelStatus());
+    TrackingService.instance.trackScreen('project_manager');
   }
 
   @override
@@ -76,6 +78,11 @@ class _AppLayoutState extends State<AppLayout> {
   }
 
   void _openProject(Map<String, dynamic> project) {
+    TrackingService.instance.trackProjectOpened(project);
+    TrackingService.instance.trackScreen('project_detail', properties: {
+      'project_id': project['id'],
+      'project_name': project['name'],
+    });
     setState(() {
       _currentProject = project;
       _selectedIndex = 3; // Index ẩn dành riêng cho Chi tiết dự án
@@ -83,6 +90,10 @@ class _AppLayoutState extends State<AppLayout> {
   }
 
   void _closeProject() {
+    if (_currentProject != null) {
+      TrackingService.instance.trackProjectClosed(_currentProject!);
+    }
+    TrackingService.instance.trackScreen('project_manager');
     setState(() {
       _currentProject = null;
       _selectedIndex = 1; // Quay về Quản lý dự án
@@ -156,6 +167,7 @@ class _AppLayoutState extends State<AppLayout> {
                 ),
                 TextButton.icon(
                   onPressed: () {
+                    TrackingService.instance.trackScreen('settings');
                     setState(() => _selectedIndex = 2); // Tab Settings
                   },
                   icon: const Icon(Icons.settings,
@@ -245,6 +257,7 @@ class _AppLayoutState extends State<AppLayout> {
           ...List.generate(_menus.length, (index) {
             return _buildNavItem(
                 _menus[index], _menuIcons[index], index == _selectedIndex, () {
+              TrackingService.instance.trackScreen(_screenNameForIndex(index));
               setState(() {
                 _selectedIndex = index;
                 // Bỏ dòng _currentProject = null ở đây để không reset State của project đang chạy
@@ -314,5 +327,18 @@ class _AppLayoutState extends State<AppLayout> {
         ),
       ),
     );
+  }
+
+  String _screenNameForIndex(int index) {
+    switch (index) {
+      case 0:
+        return 'dashboard';
+      case 1:
+        return 'project_manager';
+      case 2:
+        return 'settings';
+      default:
+        return 'project_manager';
+    }
   }
 }

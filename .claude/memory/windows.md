@@ -22,6 +22,19 @@
 .venv\Scripts\python.exe  (trong backend dir)
 ```
 
+## Build wrapper encoding
+
+- `scripts\manage.bat build` là lệnh build Windows thực tế đã verify hoạt động.
+- Có thể fail nếu Python in icon/Unicode ra stdout với console cp1252:
+  - `UnicodeEncodeError`
+- Workaround đã verify:
+```powershell
+$env:PYTHONUTF8='1'
+$env:PYTHONIOENCODING='utf-8'
+.\scripts\manage.bat build
+```
+- Hướng cần làm: hạn chế icon và tiếng Việt có dấu trong build scripts.
+
 ## Bug đang điều tra — WinError 1114
 
 **Máy:** user `tungn`

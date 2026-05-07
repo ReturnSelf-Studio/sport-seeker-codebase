@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
+import '../../core/tracking_service.dart';
 import '../theme.dart';
 import 'workspace/workspace_actions.dart';
 import 'workspace/workspace_config_widget.dart';
@@ -57,12 +58,14 @@ class _WorkspacePageState extends State<WorkspacePage>
       if (choice == _CloseChoice.cancel) {
         // Hủy + rollback rồi thoát
         await _actions.cancelAndRollback();
+        await TrackingService.instance.endSession(reason: 'window_close');
         await windowManager.destroy();
       } else if (choice == _CloseChoice.minimize) {
         await windowManager.minimize();
       }
       // null = user đóng dialog, không làm gì
     } else {
+      await TrackingService.instance.endSession(reason: 'window_close');
       await windowManager.destroy();
     }
   }

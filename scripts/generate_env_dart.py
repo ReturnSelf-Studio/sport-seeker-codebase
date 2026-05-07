@@ -5,13 +5,15 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE = ROOT_DIR / ".env"
+FALLBACK_ENV_FILE = ROOT_DIR / "dotenv"
 VERSION_FILE = ROOT_DIR / "version.json"
 DART_OUT = ROOT_DIR / "frontend/lib/core/env.dart"
 
 def main():
     env_data = {}
-    if ENV_FILE.exists():
-        with open(ENV_FILE, "r", encoding="utf-8") as f:
+    env_path = ENV_FILE if ENV_FILE.exists() else FALLBACK_ENV_FILE
+    if env_path.exists():
+        with open(env_path, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith("#"):
@@ -21,6 +23,9 @@ def main():
 
     models_url = env_data.get("MODELS_UPDATE_URL", "https://raw.githubusercontent.com/YourName/YourRepo/main/release_models/")
     if not models_url.endswith("/"): models_url += "/"
+    posthog_key = env_data.get("POSTHOG_API_KEY", "phc_vQ7KDBcZH6AmFSeN2coWiE8MvHrzNipBX43CG8Ts77HV")
+    posthog_host = env_data.get("POSTHOG_API_HOST", "https://us.i.posthog.com/")
+    posthog_defaults = env_data.get("POSTHOG_DEFAULTS", "2026-01-30")
 
     app_ver = "1.0.5"
     build_num = 1
@@ -54,6 +59,11 @@ class Env {{
 
   // Backend
   static const String bundledBackendVersion = "{backend_ver}";
+
+  // Analytics
+  static const String posthogApiKey = "{posthog_key}";
+  static const String posthogApiHost = "{posthog_host}";
+  static const String posthogDefaults = "{posthog_defaults}";
 }}
 """
     os.makedirs(os.path.dirname(DART_OUT), exist_ok=True)

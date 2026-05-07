@@ -2,17 +2,13 @@
 
 ## Git
 
-- Branch `minimal-codebase` → edit, commit, push tại đây
-- Branch `main` → chỉ dùng để build, không push
+- Branch `minimal-codebase` → edit, commit, push tại đây; chỉ giữ code/config tương ứng
+- Folder `../sport-seeker-codebase/` → branch `main`, chỉ dùng để nhận file và build/release, không push từ đây
 - Remote URL giống nhau, 2 folder riêng biệt trên disk
 
-## Sync trước khi build
+## Build/release scripts
 
-```bash
-bash .claude/sync.sh
-```
-
-## Build scripts
+Không chạy build/debug trong `minimal-codebase`. Nếu cần build/release, sync code/config bằng local devtools sang `../sport-seeker-codebase/`, rồi thao tác ở folder branch `main`.
 
 | Command | Script | Mô tả |
 |---------|--------|-------|
@@ -25,14 +21,22 @@ bash .claude/sync.sh
 | `kill` | `scripts/cmd_backend.py kill` | Force kill SportSeekerAPI |
 | `clean` | `scripts/clean.bat` | Xóa cache, AppData, kill processes |
 
-## Local DevTools (`.devtools` / `.dev/`)
+## Local DevTools (`.devtools.ps1` / `.dev/`)
 
-- `.devtools` là **file shell script ở root**, không phải folder.
-- `.dev/` chứa Python DevTools local-only: `tree`, `collect`, `zip`, `save`, `load`, `sync`.
-- `.devtools` bootstrap `.dev/.venv`, tìm/cài `uv`, rồi chạy `.dev/main.py`.
+- `.devtools.ps1` là PowerShell bootstrap ở root.
+- `.dev/` chứa Python DevTools local-only.
+- `.devtools.ps1` kiểm tra/cài `uv`, tạo venv tại `.dev/.venv`, rồi ủy thác cho `.dev/main.py`.
 - Công cụ này **chỉ dành cho máy dev local**. Không cần và không nên đảm bảo chạy trên Windows/client release.
-- Việc `.devtools` trong session macOS/Linux không chạy được trên Windows là chủ đích đúng: đây là tooling cá nhân để hỗ trợ sync/build workflow, không phải runtime app.
-- `.devtools` và `.dev/` nằm trong `.gitignore`; nếu cần copy sang `codebase-main` chỉ dùng flag chủ động: `./.devtools sync --include-devtools`.
+- `.devtools.ps1` và `.dev/` nằm trong `.gitignore`; không push git.
+- `dev_collect.py`: thu thập danh sách file code/config từ folder hiện tại, bỏ local env/build/debug/runtime artifacts.
+- `dev_sync.py`: gọi `dev_collect.py`, rồi copy + ghi đè file đã collect sang `../sport-seeker-codebase/`.
+
+## Session notes
+
+- Handoff chi tiết gần nhất: `memory/session_2026-05-05.md`
+- Build Windows thực tế đang đi qua `../sport-seeker-codebase/scripts/manage.bat`.
+- Nếu Python stdout còn dùng codepage cp1252, build có thể fail vì `UnicodeEncodeError` khi script in icon/Unicode.
+- Hướng analytics mới ưu tiên backend-centric thay vì frontend-centric.
 
 ## Versioning (`version.json`)
 
@@ -52,16 +56,3 @@ bash .claude/sync.sh
 - Tích hợp `uninstall_sport_seeker.command` vào `build_ui.py`
 - Tích hợp `uninstall_sport_seeker.bat` vào `build_windows.py`
 
-## Files cần sync (danh sách hiện tại)
-
-**Backend:**
-- `resource/backend/app/core/video_manifest.py`
-- `resource/backend/app/core/project_manager.py`
-- `resource/backend/app/api/routers/engine.py`
-- `resource/backend/app/services/video_pipeline.py`
-
-**Frontend:**
-- `lib/ui/pages/workspace_page.dart`
-- `lib/ui/pages/workspace/workspace_actions.dart`
-- `lib/ui/pages/workspace/workspace_prescan_widget.dart`
-- `lib/ui/pages/workspace/workspace_control_widget.dart`

@@ -39,14 +39,23 @@ class BackendManagerMacOS extends BackendManager {
     env['SPORT_SEEKER_MODELS_ROOT'] = customModelPath;
     env['SPORT_SEEKER_MODEL_NAME'] = customModelName;
 
+    // Analytics — backend dùng để init PostHog
+    env['POSTHOG_API_KEY'] = Env.posthogApiKey;
+    env['POSTHOG_API_HOST'] = Env.posthogApiHost;
+    env['SPORT_SEEKER_APP_VERSION'] = Env.appVersion;
+    env['SPORT_SEEKER_BUILD_NUMBER'] = Env.buildNumber.toString();
+
     String pythonCmd = '';
     List<String> args = [];
+    String? runDirectory; // BỔ SUNG: Khởi tạo biến lưu thư mục làm việc
 
     if (useBackendBinary) {
       final supportDir = await getApplicationSupportDirectory();
       final backendDir = Directory('${supportDir.path}/sport_seeker_backend');
 
+      runDirectory = backendDir.path; // BỔ SUNG: Set working directory cho môi trường production
       pythonCmd = '${backendDir.path}/SportSeekerAPI';
+      
       final exeFile = File(pythonCmd);
       final lastInstalledVersion = prefs.getString('installed_engine_version') ?? '';
 
@@ -93,6 +102,7 @@ class BackendManagerMacOS extends BackendManager {
     } else {
       pythonCmd = '../.venv/bin/python';
       args = ['../main.py'];
+      // Dev mode: Giữ nguyên runDirectory là null để nó sử dụng working directory hiện tại của flutter run
     }
 
     if (onProgress != null) onProgress("Đang khởi động AI Engine...");
@@ -101,7 +111,13 @@ class BackendManagerMacOS extends BackendManager {
     bool processDied = false;
 
     try {
-      _backendProcess = await Process.start(pythonCmd, args, environment: env, runInShell: false);
+      _backendProcess = await Process.start(
+        pythonCmd, 
+        args, 
+        environment: env, 
+        runInShell: false,
+        workingDirectory: runDirectory // BỔ SUNG: Truyền biến này vào lệnh gọi Process
+      );
 
       _backendProcess?.exitCode.then((code) {
         if (!isReady) {
